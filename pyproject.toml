@@ -3,7 +3,7 @@ build-backend = "hatchling.build"
 requires = [ "hatchling" ]
 
 [project]
-name = "slurm_sweep"
+name = "slurm-sweep"
 version = "0.0.1"
 description = "Hyperparameter sweeps on slurm"
 readme = "README.md"
@@ -24,8 +24,11 @@ classifiers = [
 ]
 dependencies = [
   "anndata",
+  "numpy",
   # for debug logging (referenced from the issue template)
   "session-info2",
+  "simple-slurm",
+  "wandb",
 ]
 optional-dependencies.dev = [
   "pre-commit",
