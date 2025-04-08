@@ -44,6 +44,7 @@ class SweepManager:
         output: str = f"slurm_logs/wandb_grid_{Slurm.JOB_ARRAY_MASTER_ID}_{Slurm.JOB_ARRAY_ID}.out",
         array: tuple | range = range(0, 2),
         mamba_env: str | None = None,
+        job_file: str = "submit.sh",
     ) -> None:
         """
         Submit a SLURM job array to run the wandb agent for the sweep.
@@ -62,6 +63,8 @@ class SweepManager:
             Job array specification.
         mamba_env
             Mamba environment to activate.
+        job_file
+            The slurm submission script will be written here.
         """
         if not self.sweep_id:
             raise ValueError("Sweep ID is not set. Please register the sweep first.")
@@ -77,14 +80,6 @@ class SweepManager:
             array=array,
         )
 
-        # Add logging to SLURM script
-        slurm.add_cmd("echo 'Starting SLURM job...'")
-        slurm.add_cmd(f"echo 'Sweep ID: {self.sweep_id}'")
-        slurm.add_cmd(f"echo 'Project Name: {self.project_name}'")
-        slurm.add_cmd(f"echo 'Entity: {self.entity}'")
-        slurm.add_cmd(f"echo 'Mamba Environment: {mamba_env}'")
-        slurm.add_cmd("echo 'Loading required modules...'")
-
         # Load required modules
         slurm.add_cmd("module load stack eth_proxy")
 
@@ -92,17 +87,8 @@ class SweepManager:
         if mamba_env:
             slurm.add_cmd("source $HOME/.bashrc")  # Source user-specific bashrc
             slurm.add_cmd(f"mamba activate {mamba_env}")
-            slurm.add_cmd("echo 'Activated mamba environment.'")
-
-        # Add environment variables for wandb
-        slurm.add_cmd("export WANDB_MODE=dryrun")
-        slurm.add_cmd("export WANDB__SERVICE_WAIT=300")
-        slurm.add_cmd("export WANDB_START_METHOD=thread")
-        slurm.add_cmd("export WANDB_DEBUG=true")
 
         # Log the wandb agent command
-        slurm.add_cmd(f"echo 'Executing command: {command}'")
         slurm.add_cmd(command)
 
-        print("Submitting slurm job array with the following configuration:\n", slurm)
-        slurm.sbatch(shell="/bin/bash")
+        slurm.sbatch(shell="/bin/bash", job_file=job_file, convert=False)
