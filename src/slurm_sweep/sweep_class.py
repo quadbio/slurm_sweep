@@ -8,7 +8,7 @@ class SweepManager:
     def __init__(self) -> None:
         """Initialize the SweepManager with general configuration."""
         self.project_name: str | None = None
-        self.organization: str | None = None
+        self.entity: str | None = None
         self.sweep_id: str | None = None
 
     def register_sweep(self, sweep_config: dict, project_name: str | None = None, entity: str | None = None) -> None:
@@ -66,7 +66,7 @@ class SweepManager:
         if not self.sweep_id:
             raise ValueError("Sweep ID is not set. Please register the sweep first.")
 
-        command = f'wandb agent "{self.organization}/{self.project_name}/{self.sweep_id}"'
+        command = f'wandb agent "{self.entity}/{self.project_name}/{self.sweep_id}"'
 
         slurm = Slurm(
             time=time,
@@ -84,5 +84,7 @@ class SweepManager:
             slurm.add_cmd("source $HOME/.bashrc")  # Source user-specific bashrc
             slurm.add_cmd(f"mamba activate {mamba_env}")
 
+        slurm.add_cmd(command)
+
         print("Submitting slurm job array with the following configuration:\n", slurm)
-        slurm.sbatch(command, shell="/bin/bash")
+        slurm.sbatch(shell="/bin/bash")
