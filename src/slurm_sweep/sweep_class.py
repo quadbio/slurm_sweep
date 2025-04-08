@@ -45,6 +45,9 @@ class SweepManager:
         array: tuple | range = range(0, 2),
         mamba_env: str | None = None,
         job_file: str = "submit.sh",
+        convert: bool = True,
+        shell: str = "/bin/bash",
+        modules: str | None = None,
     ) -> None:
         """
         Submit a SLURM job array to run the wandb agent for the sweep.
@@ -65,6 +68,12 @@ class SweepManager:
             Mamba environment to activate.
         job_file
             The slurm submission script will be written here.
+        convert
+            Whether to escape bash variables (see the ``sbatch`` method in ``simple_slurm``).
+        shell
+            The shell to use for the SLURM job.
+        modules
+            A space-separated string of modules to load (e.g., "stack eth_proxy").
         """
         if not self.sweep_id:
             raise ValueError("Sweep ID is not set. Please register the sweep first.")
@@ -80,15 +89,14 @@ class SweepManager:
             array=array,
         )
 
-        # Load required modules
-        slurm.add_cmd("module load stack eth_proxy")
+        # Load required modules if specified
+        if modules:
+            slurm.add_cmd(f"module load {modules}")
 
         # Activate mamba/conda environment
         if mamba_env:
             slurm.add_cmd("source $HOME/.bashrc")  # Source user-specific bashrc
             slurm.add_cmd(f"mamba activate {mamba_env}")
 
-        # Log the wandb agent command
-        slurm.add_cmd(command)
-
-        slurm.sbatch(shell="/bin/bash", job_file=job_file, convert=False)
+        # Add the wandb agent command
+        slurm.sbatch(command, shell=shell, job_file=job_file, convert=convert)
