@@ -66,6 +66,7 @@ class SweepManager:
         if not self.sweep_id:
             raise ValueError("Sweep ID is not set. Please register the sweep first.")
 
+        # Escape bash variables for the SLURM script
         command = f'wandb agent "{self.entity}/{self.project_name}/{self.sweep_id}"'
 
         slurm = Slurm(
@@ -76,6 +77,14 @@ class SweepManager:
             array=array,
         )
 
+        # Add logging to SLURM script
+        slurm.add_cmd("echo 'Starting SLURM job...'")
+        slurm.add_cmd(f"echo 'Sweep ID: {self.sweep_id}'")
+        slurm.add_cmd(f"echo 'Project Name: {self.project_name}'")
+        slurm.add_cmd(f"echo 'Entity: {self.entity}'")
+        slurm.add_cmd(f"echo 'Mamba Environment: {mamba_env}'")
+        slurm.add_cmd("echo 'Loading required modules...'")
+
         # Load required modules
         slurm.add_cmd("module load stack eth_proxy")
 
@@ -83,7 +92,10 @@ class SweepManager:
         if mamba_env:
             slurm.add_cmd("source $HOME/.bashrc")  # Source user-specific bashrc
             slurm.add_cmd(f"mamba activate {mamba_env}")
+            slurm.add_cmd("echo 'Activated mamba environment.'")
 
+        # Log the wandb agent command
+        slurm.add_cmd(f"echo 'Executing command: {command}'")
         slurm.add_cmd(command)
 
         print("Submitting slurm job array with the following configuration:\n", slurm)
