@@ -9,4 +9,4 @@
 module load stack eth_proxy
 source $HOME/.bashrc
 mamba activate rapids_jax
-wandb agent "spatial_vi/sweep_test/63ikf7si"
+wandb agent "spatial_vi/sweep_test/gy3rndlc"
