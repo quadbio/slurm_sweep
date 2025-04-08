@@ -94,6 +94,12 @@ class SweepManager:
             slurm.add_cmd(f"mamba activate {mamba_env}")
             slurm.add_cmd("echo 'Activated mamba environment.'")
 
+        # Add environment variables for wandb
+        slurm.add_cmd("export WANDB_MODE=dryrun")
+        slurm.add_cmd("export WANDB__SERVICE_WAIT=300")
+        slurm.add_cmd("export WANDB_START_METHOD=thread")
+        slurm.add_cmd("export WANDB_DEBUG=true")
+
         # Log the wandb agent command
         slurm.add_cmd(f"echo 'Executing command: {command}'")
         slurm.add_cmd(command)
