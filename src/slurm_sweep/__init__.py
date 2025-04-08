@@ -1,7 +1,7 @@
 from importlib.metadata import version
 
-from . import pl, pp, tl
+from .sweep_class import SweepManager
 
-__all__ = ["pl", "pp", "tl"]
+__all__ = ["SweepManager"]
 
 __version__ = version("slurm_sweep")
