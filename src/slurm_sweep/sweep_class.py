@@ -76,13 +76,16 @@ class SweepManager:
             array=array,
         )
 
+        # Explicitly source environment setup files
+        slurm.add_cmd("source /etc/profile")  # Source global profile
+        slurm.add_cmd("source $HOME/.bashrc")  # Source user-specific bashrc
+
         # Load required modules
         slurm.add_cmd("module load stack eth_proxy")
 
         # Activate mamba/conda environment
         if mamba_env:
-            slurm.add_cmd("source $HOME/.bashrc")
             slurm.add_cmd(f"mamba activate {mamba_env}")
 
-        print("Submitting slurm job array with the followign configuration:\n", slurm)
+        print("Submitting slurm job array with the following configuration:\n", slurm)
         slurm.sbatch(command)
