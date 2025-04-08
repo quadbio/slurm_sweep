@@ -1,6 +1,8 @@
 import wandb
 from simple_slurm import Slurm
 
+from slurm_sweep._logging import logger
+
 
 class SweepManager:
     """A class to manage wandb sweeps and submit SLURM jobs."""
@@ -34,7 +36,7 @@ class SweepManager:
             project=self.project_name,
             entity=self.entity,
         )
-        print(f"Sweep registered with ID: {self.sweep_id}")
+        logger.info("Sweep registered with ID '%s'", self.sweep_id)
 
     def submit_jobs(
         self,
@@ -99,4 +101,7 @@ class SweepManager:
             slurm.add_cmd(f"mamba activate {mamba_env}")
 
         # Add the wandb agent command
-        slurm.sbatch(command, shell=shell, job_file=job_file, convert=convert)
+        slurm.add_cmd(command)
+
+        logger.info("Submitting SLURM job with the following configuration: %s", slurm)
+        slurm.sbatch(shell=shell, job_file=job_file, convert=convert)
