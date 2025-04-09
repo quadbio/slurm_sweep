@@ -10,6 +10,5 @@ and this project adheres to [Semantic Versioning][].
 
 ## [Unreleased]
 
-### Added
-
-- Basic tool, preprocessing and plotting functions
+## [v.0.1.0]
+Basic version of this package to create a `submit.sh` script and initialize a hyperparameter sweep on W&B.
