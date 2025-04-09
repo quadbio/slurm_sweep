@@ -35,13 +35,9 @@ def main(config: str = typer.Option(..., "-c", "--config", help="Path to the con
     # Submit the jobs
     logger.info("Submitting jobs to SLURM...")
     sm.submit_jobs(
-        time=slurm_config["time"],
-        mem_per_cpu=slurm_config["mem_per_cpu"],
-        job_name=slurm_config["job_name"],
-        output=slurm_config["output"],
-        array=range(0, 2),  # Default array range; can be extended
+        slurm_parameters=slurm_config,
         mamba_env=general_config.get("mamba_env"),
-        modules=slurm_config.get("modules"),  # Optional modules
+        modules=general_config.get("modules"),
     )
 
 

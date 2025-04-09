@@ -40,11 +40,7 @@ class SweepManager:
 
     def submit_jobs(
         self,
-        time: str = "1:00:00",
-        mem_per_cpu: str = "1G",
-        job_name: str = "sweep",
-        output: str = f"slurm_logs/wandb_grid_{Slurm.JOB_ARRAY_MASTER_ID}_{Slurm.JOB_ARRAY_ID}.out",
-        array: tuple | range = range(0, 2),
+        slurm_parameters: dict | None = None,
         mamba_env: str | None = None,
         job_file: str = "submit.sh",
         convert: bool = True,
@@ -56,16 +52,8 @@ class SweepManager:
 
         Parameters
         ----------
-        time
-            The maximum runtime for the SLURM job (e.g., "00:30:00").
-        mem_per_cpu
-            The memory allocated per CPU (e.g., "8G").
-        job_name
-            The name of the SLURM job.
-        output
-            The file path for the SLURM job's standard output.
-        array
-            Job array specification.
+        slurm_parameters
+            A dictionary of SLURM parameters to pass to the `Slurm` class.
         mamba_env
             Mamba environment to activate.
         job_file
@@ -80,16 +68,9 @@ class SweepManager:
         if not self.sweep_id:
             raise ValueError("Sweep ID is not set. Please register the sweep first.")
 
-        # Escape bash variables for the SLURM script
-        command = f'wandb agent "{self.entity}/{self.project_name}/{self.sweep_id}"'
-
-        slurm = Slurm(
-            time=time,
-            mem_per_cpu=mem_per_cpu,
-            job_name=job_name,
-            output=output,
-            array=array,
-        )
+        # Initialize SLURM with user-provided parameters
+        slurm_parameters = slurm_parameters or {}
+        slurm = Slurm(**slurm_parameters)
 
         # Load required modules if specified
         if modules:
@@ -101,7 +82,12 @@ class SweepManager:
             slurm.add_cmd(f"mamba activate {mamba_env}")
 
         # Add the wandb agent command
+        command = f'wandb agent "{self.sweep_id}"'
         slurm.add_cmd(command)
 
         logger.info("Submitting SLURM job with the following configuration: %s", slurm)
-        slurm.sbatch(shell=shell, job_file=job_file, convert=convert)
+        slurm.sbatch(
+            shell=shell,
+            job_file=job_file,
+            convert=convert,
+        )

@@ -3,6 +3,9 @@ general:
   mamba_env: py312
   # sweep_id: YOUR_SWEEP_ID # only provide this for existing sweeps
   organization: spatial_vi # put the organization or team name here
+  modules:
+    - stack
+    - eth_proxy
 
 slurm:
   time: "00:30:00"
@@ -10,6 +13,7 @@ slurm:
   job_name: sweep_test_2
   output: slurm-%j.out
   error: slurm-%j.err
+  array: "0-10"
 
 wandb:
   program: train.py

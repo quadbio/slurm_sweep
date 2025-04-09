@@ -2,8 +2,6 @@ from typing import Any
 
 import yaml
 
-from slurm_sweep.constants import SlurmDefaults
-
 
 class ConfigValidator:
     """A class to validate and process the configuration file for slurm-sweep."""
@@ -66,18 +64,11 @@ class ConfigValidator:
                 "Refer to https://docs.wandb.ai/guides/sweeps/define-sweep-configuration/ for details."
             )
 
-        # Add default values for optional blocks
+        # Ensure the `general` block exists
         self.config.setdefault("general", {})
-        self.config.setdefault(
-            "slurm",
-            {
-                "time": SlurmDefaults.TIME,
-                "mem_per_cpu": SlurmDefaults.MEM_PER_CPU,
-                "job_name": SlurmDefaults.JOB_NAME,
-                "output": SlurmDefaults.OUTPUT,
-                "error": SlurmDefaults.ERROR,
-            },
-        )
+
+        # Ensure the `slurm` block exists
+        self.config.setdefault("slurm", {})
 
     def get_config(self) -> dict[str, Any]:
         """
