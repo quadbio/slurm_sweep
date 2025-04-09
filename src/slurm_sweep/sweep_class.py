@@ -24,9 +24,7 @@ class SweepManager:
         """
         return f"SweepManager(project_name={self.project_name!r}, entity={self.entity!r}, sweep_id={self.sweep_id!r})"
 
-    def register_sweep(
-        self, sweep_config: dict, project_name: str = "uncategorized", entity: str | None = None
-    ) -> None:
+    def register_sweep(self, sweep_config: dict, project_name: str, entity: str) -> None:
         """
         Register a sweep with wandb using the provided sweep configuration.
 
@@ -49,7 +47,6 @@ class SweepManager:
             project=self.project_name,
             entity=self.entity,
         )
-        logger.info("Sweep registered with ID '%s'", self.sweep_id)
 
     def submit_jobs(
         self,
@@ -95,7 +92,7 @@ class SweepManager:
             slurm.add_cmd(f"mamba activate {mamba_env}")
 
         # Add the wandb agent command
-        command = f'wandb agent "{self.sweep_id}"'
+        command = f'wandb agent "{self.entity}/{self.project_name}/{self.sweep_id}"'
         slurm.add_cmd(command)
 
         logger.info("Submitting SLURM job with the following configuration:\n%s", slurm)

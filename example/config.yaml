@@ -2,7 +2,7 @@ general:
   project_name: sweep_test_2
   mamba_env: py312
   # sweep_id: YOUR_SWEEP_ID # only provide this for existing sweeps
-  organization: spatial_vi # put the organization or team name here
+  entity: spatial_vi
   modules: stack eth_proxy
 
 slurm:

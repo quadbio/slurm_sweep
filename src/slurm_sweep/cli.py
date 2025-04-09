@@ -25,15 +25,16 @@ def run_sweep(config: str = typer.Argument(help="Path to the configuration YAML 
     sm = SweepManager()
 
     # Register the sweep
-    logger.info("Registering the sweep...")
+    project_name = general_config.get("project_name")
+    entity = general_config.get("entity")
+    logger.info("Registering the sweep using project_name = '%s' and entity = '%s'", project_name, entity)
     sm.register_sweep(
         sweep_config=wandb_config,
-        project_name=general_config.get("project_name"),
-        entity=general_config.get("organization"),
+        project_name=project_name,
+        entity=entity,
     )
 
     # Submit the jobs
-    logger.info("Submitting jobs to SLURM...")
     sm.submit_jobs(
         slurm_parameters=slurm_config,
         mamba_env=general_config.get("mamba_env"),
