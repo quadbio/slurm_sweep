@@ -1,3 +1,4 @@
+import warnings
 from typing import Any
 
 import yaml
@@ -76,6 +77,15 @@ class ConfigValidator:
 
         # Ensure the `slurm` block exists
         self.config.setdefault("slurm", {})
+
+        # Warn about unexpected blocks
+        allowed_blocks = {"general", "slurm", "wandb"}
+        unexpected_blocks = set(self.config.keys()) - allowed_blocks
+        if unexpected_blocks:
+            warnings.warn(
+                f"The configuration file contains unexpected blocks: {unexpected_blocks}. These will be ignored.",
+                stacklevel=2,
+            )
 
     def get_config(self) -> dict[str, Any]:
         """
