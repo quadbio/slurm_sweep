@@ -27,6 +27,7 @@ dependencies = [
   # for debug logging (referenced from the issue template)
   "session-info2",
   "simple-slurm",
+  "typer",
   "wandb",
 ]
 optional-dependencies.dev = [
@@ -57,6 +58,8 @@ optional-dependencies.test = [
 urls.Documentation = "https://slurm_sweep.readthedocs.io/"
 urls.Homepage = "https://github.com/quadbio/slurm_sweep"
 urls.Source = "https://github.com/quadbio/slurm_sweep"
+
+scripts.slurm-sweep = "slurm_sweep.cli:main" # Add entry point for the CLI
 
 [tool.hatch.envs.default]
 installer = "uv"
