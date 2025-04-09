@@ -55,3 +55,28 @@ def unexpected_block_config_file(tmp_path):
     with open(file_path, "w") as f:
         yaml.dump(config, f)
     return file_path
+
+
+@pytest.fixture
+def sweep_config():
+    return {
+        "method": "grid",
+        "parameters": {
+            "lr": {"values": [0.01, 0.1]},
+            "batch_size": {"values": [32, 64]},
+        },
+    }
+
+
+@pytest.fixture
+def expected_slurm_script():
+    return """#!/bin/bash
+
+#SBATCH --partition           test
+#SBATCH --time                01:00:00
+
+module load test_module
+source $HOME/.bashrc
+mamba activate test_env
+wandb agent "test_entity/test_project/test-sweep-id"
+"""
