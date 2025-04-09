@@ -8,8 +8,8 @@ app = typer.Typer()
 
 
 @app.command()
-def run_sweep(config: str = typer.Argument(help="Path to the configuration YAML file.")):
-    """Run hyperparameter sweeps on SLURM clusters using wandb."""
+def configure_sweep(config: str = typer.Argument(help="Path to the configuration YAML file.")):
+    """Produce a submit.sh file to run a hyperparameter sweep though wandb on a SLURM cluster."""
     # Validate and load the configuration
     validator = ConfigValidator(config_path=config)
     validator.load_config()
@@ -35,7 +35,7 @@ def run_sweep(config: str = typer.Argument(help="Path to the configuration YAML 
     )
 
     # Submit the jobs
-    sm.submit_jobs(
+    sm.write_script(
         slurm_parameters=slurm_config,
         mamba_env=general_config.get("mamba_env"),
         modules=general_config.get("modules"),

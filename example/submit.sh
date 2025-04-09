@@ -9,4 +9,4 @@
 module load stack eth_proxy
 source $HOME/.bashrc
 mamba activate py312
-wandb agent "spatial_vi/sweep_test_2/cp0qvbng"
+wandb agent "spatial_vi/sweep_test_2/2ok6bs1y"

@@ -1,5 +1,3 @@
-import subprocess
-
 import wandb
 from simple_slurm import Slurm
 
@@ -48,7 +46,7 @@ class SweepManager:
             entity=self.entity,
         )
 
-    def submit_jobs(
+    def write_script(
         self,
         slurm_parameters: dict | None = None,
         mamba_env: str | None = None,
@@ -58,7 +56,7 @@ class SweepManager:
         modules: str | None = None,
     ) -> None:
         """
-        Submit a SLURM job array to run the wandb agent for the sweep.
+        Produce a submission script to run a grid search with wandb on a SLURM cluster.
 
         Parameters
         ----------
@@ -88,28 +86,13 @@ class SweepManager:
 
         # Activate mamba/conda environment
         if mamba_env:
-            slurm.add_cmd("source $HOME/.bashrc")  # Source user-specific bashrc
+            slurm.add_cmd("source $HOME/.bashrc")
             slurm.add_cmd(f"mamba activate {mamba_env}")
 
         # Add the wandb agent command
         command = f'wandb agent "{self.entity}/{self.project_name}/{self.sweep_id}"'
         slurm.add_cmd(command)
 
-        # Write to file and submit
+        # Write to file
         with open(job_file, "w") as fid:
             fid.write(slurm.script(shell, convert))
-
-        # Debugging information
-        import os
-
-        print("Current working directory:", os.getcwd())
-        print("Environment variables:", os.environ)
-
-        # Submit the job
-        cmd = f"sbatch {job_file}"
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, env=os.environ)
-        print("STDOUT:", result.stdout)
-        print("STDERR:", result.stderr)
-
-        if result.returncode != 0:
-            raise RuntimeError(f"Failed to submit job: {result.stderr}")
