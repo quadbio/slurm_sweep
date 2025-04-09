@@ -105,7 +105,7 @@ Additionally, a CI job tests against pre-releases of all dependencies (if availa
 
 ### Updating the Version Number
 
-Before making a release, update the version number in the `pyproject.toml` file. Follow [Semantic Versioning][semver]:
+This package uses `hatch-vcs` to infer version numbers. Follow [Semantic Versioning][semver]:
 
 > Given a version number MAJOR.MINOR.PATCH, increment the:
 >
