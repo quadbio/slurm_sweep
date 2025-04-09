@@ -98,13 +98,18 @@ class SweepManager:
         # Write to file and submit
         with open(job_file, "w") as fid:
             fid.write(slurm.script(shell, convert))
+
+        # Debugging information
+        import os
+
+        print("Current working directory:", os.getcwd())
+        print("Environment variables:", os.environ)
+
+        # Submit the job
         cmd = f"sbatch {job_file}"
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, env=os.environ)
+        print("STDOUT:", result.stdout)
+        print("STDERR:", result.stderr)
 
-        subprocess.run(cmd, shell=True)
-
-        # logger.info("Submitting SLURM job with the following configuration:\n%s", slurm)
-        # slurm.sbatch(
-        #     shell=shell,
-        #     job_file=job_file,
-        #     convert=convert,
-        # )
+        if result.returncode != 0:
+            raise RuntimeError(f"Failed to submit job: {result.stderr}")
