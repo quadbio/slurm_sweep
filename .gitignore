@@ -15,10 +15,6 @@ __pycache__/
 /data/
 /node_modules/
 
-# docs
-/docs/generated/
-/docs/_build/
-
 # example outputs
 wandb/
 slurm_logs/
