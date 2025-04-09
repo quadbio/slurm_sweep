@@ -1,15 +1,15 @@
 import typer
 
-from slurm_sweep._logging import logger
-from slurm_sweep.sweep_class import SweepManager
-from slurm_sweep.utils import ConfigValidator
-
-app = typer.Typer(help="Run hyperparameter sweeps on SLURM clusters using wandb.")
+app = typer.Typer()
 
 
 @app.command()
-def main(config: str = typer.Option(..., "-c", "--config", help="Path to the configuration YAML file.")):
-    """Main entry point for the CLI."""
+def run_sweep(config: str = typer.Argument(help="Path to the configuration YAML file.")):
+    """Run hyperparameter sweeps on SLURM clusters using wandb."""
+    from slurm_sweep._logging import logger
+    from slurm_sweep.sweep_class import SweepManager
+    from slurm_sweep.utils import ConfigValidator
+
     # Validate and load the configuration
     validator = ConfigValidator(config_path=config)
     validator.load_config()
@@ -39,7 +39,3 @@ def main(config: str = typer.Option(..., "-c", "--config", help="Path to the con
         mamba_env=general_config.get("mamba_env"),
         modules=general_config.get("modules"),
     )
-
-
-if __name__ == "__main__":
-    app()
