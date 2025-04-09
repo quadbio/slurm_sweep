@@ -1,30 +1,27 @@
-# Contributing guide
+# Contributing Guide
 
-Scanpy provides extensive [developer documentation][scanpy developer guide], most of which applies to this project, too.
-This document will not reproduce the entire content from there.
-Instead, it aims at summarizing the most important information to get you started on contributing.
+This project builds upon the [Scanpy developer guide][scanpy developer guide], which provides extensive documentation for developers. This document summarizes the most important information to help you get started contributing to this project.
 
-We assume that you are already familiar with git and with making pull requests on GitHub.
-If not, please refer to the [scanpy developer guide][].
+If you're unfamiliar with Git or making pull requests on GitHub, please refer to the [Scanpy developer guide][scanpy developer guide].
 
 [scanpy developer guide]: https://scanpy.readthedocs.io/en/latest/dev/index.html
 
-## Installing dev dependencies
+---
 
-In addition to the packages needed to _use_ this package,
-you need additional python packages to [run tests](#writing-tests).
+## Installing Development Dependencies
 
-:::::{tabs}
-::::{group-tab} Hatch
-The easiest way is to get familiar with [hatch environments][], with which these tasks are simply:
+In addition to the packages required to _use_ this package, you'll need additional Python packages to [run tests](#writing-tests).
+
+### Using Hatch
+
+The easiest way to manage dependencies is with [Hatch environments][hatch environments]. You can run the following commands:
 
 ```bash
-hatch test  # defined in the table [tool.hatch.envs.hatch-test] in pyproject.toml
+hatch test  # Defined in the [tool.hatch.envs.hatch-test] section of pyproject.toml
 ```
 
-::::
+### Using Pip
 
-::::{group-tab} Pip
 If you prefer managing environments manually, you can use `pip`:
 
 ```bash
@@ -34,115 +31,91 @@ source .venv/bin/activate
 pip install -e ".[dev,test]"
 ```
 
-::::
-:::::
-
 [hatch environments]: https://hatch.pypa.io/latest/tutorials/environment/basic-usage/
 
-## Code-style
+---
 
-This package uses [pre-commit][] to enforce consistent code-styles.
-On every commit, pre-commit checks will either automatically fix issues with the code, or raise an error message.
+## Code Style
 
-To enable pre-commit locally, simply run
+This project uses [pre-commit][] to enforce consistent code styles. On every commit, pre-commit checks will either automatically fix issues or raise an error message.
+
+### Setting Up Pre-Commit Locally
+
+To enable pre-commit locally, run the following command in the root of the repository:
 
 ```bash
 pre-commit install
 ```
 
-in the root of the repository.
 Pre-commit will automatically download all dependencies when it is run for the first time.
 
-Alternatively, you can rely on the [pre-commit.ci][] service enabled on GitHub.
-If you didn't run `pre-commit` before pushing changes to GitHub it will automatically commit fixes to your pull request, or show an error message.
+Alternatively, you can rely on the [pre-commit.ci][] service enabled on GitHub. If you didn't run `pre-commit` before pushing changes to GitHub, it will automatically commit fixes to your pull request or show an error message.
 
-If pre-commit.ci added a commit on a branch you still have been working on locally, simply use
+If `pre-commit.ci` adds a commit to a branch you're working on locally, use the following command to integrate the changes:
 
 ```bash
 git pull --rebase
 ```
 
-to integrate the changes into yours.
-While the [pre-commit.ci][] is useful, we strongly encourage installing and running pre-commit locally first to understand its usage.
+While `pre-commit.ci` is useful, we strongly encourage installing and running pre-commit locally to understand its usage.
 
-Finally, most editors have an _autoformat on save_ feature.
-Consider enabling this option for [ruff][ruff-editors] and [biome][biome-editors].
+### Editor Integration
+
+Most editors support _autoformat on save_. Consider enabling this option for [Ruff][ruff-editors] and [Biome][biome-editors].
 
 [pre-commit]: https://pre-commit.com/
 [pre-commit.ci]: https://pre-commit.ci/
 [ruff-editors]: https://docs.astral.sh/ruff/integrations/
 [biome-editors]: https://biomejs.dev/guides/integrate-in-editor/
 
-(writing-tests)=
+---
 
-## Writing tests
+## Writing Tests
 
-This package uses [pytest][] for automated testing.
-Please write {doc}`scanpy:dev/testing` for every function added to the package.
+This project uses [pytest][] for automated testing. Please write tests for every function added to the package.
 
-Most IDEs integrate with pytest and provide a GUI to run tests.
-Just point yours to one of the environments returned by
+### Running Tests Locally
 
-```bash
-hatch env create hatch-test  # create test environments for all supported versions
-hatch env find hatch-test  # list all possible test environment paths
-```
-
-Alternatively, you can run all tests from the command line by executing
-
-:::::{tabs}
-::::{group-tab} Hatch
+#### Using Hatch
 
 ```bash
-hatch test  # test with the highest supported Python version
+hatch test  # Test with the highest supported Python version
 # or
-hatch test --all  # test with all supported Python versions
+hatch test --all  # Test with all supported Python versions
 ```
 
-::::
-
-::::{group-tab} Pip
+#### Using Pip
 
 ```bash
 source .venv/bin/activate
 pytest
 ```
 
-::::
-:::::
+### Continuous Integration
 
-in the root of the repository.
+Continuous integration automatically runs tests on all pull requests and tests against the minimum and maximum supported Python versions.
+
+Additionally, a CI job tests against pre-releases of all dependencies (if available). This helps detect incompatibilities with new package versions early, giving you time to fix issues or reach out to the developers of the dependency before the package is widely released.
 
 [pytest]: https://docs.pytest.org/
 
-### Continuous integration
+---
 
-Continuous integration will automatically run the tests on all pull requests and test
-against the minimum and maximum supported Python version.
+## Publishing a Release
 
-Additionally, there's a CI job that tests against pre-releases of all dependencies (if there are any).
-The purpose of this check is to detect incompatibilities of new package versions early on and
-gives you time to fix the issue or reach out to the developers of the dependency before the package is released to a wider audience.
+### Updating the Version Number
 
-## Publishing a release
-
-### Updating the version number
-
-Before making a release, you need to update the version number in the `pyproject.toml` file.
-Please adhere to [Semantic Versioning][semver], in brief
+Before making a release, update the version number in the `pyproject.toml` file. Follow [Semantic Versioning][semver]:
 
 > Given a version number MAJOR.MINOR.PATCH, increment the:
 >
-> 1. MAJOR version when you make incompatible API changes,
-> 2. MINOR version when you add functionality in a backwards compatible manner, and
-> 3. PATCH version when you make backwards compatible bug fixes.
->
-> Additional labels for pre-release and build metadata are available as extensions to the MAJOR.MINOR.PATCH format.
+> 1. MAJOR version for incompatible API changes,
+> 2. MINOR version for backwards-compatible functionality additions, and
+> 3. PATCH version for backwards-compatible bug fixes.
 
-Once you are done, commit and push your changes and navigate to the "Releases" page of this project on GitHub.
-Specify `vX.X.X` as a tag name and create a release.
-For more information, see [managing GitHub releases][].
-This will automatically create a git tag and trigger a Github workflow that creates a release on [PyPI][].
+Once updated, commit and push your changes. Navigate to the "Releases" page on GitHub, specify `vX.X.X` as the tag name, and create a release. For more details, see [managing GitHub releases][managing GitHub releases].
+
+This will automatically create a Git tag and trigger a GitHub workflow to publish the release on [PyPI][].
 
 [semver]: https://semver.org/
 [managing GitHub releases]: https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository
