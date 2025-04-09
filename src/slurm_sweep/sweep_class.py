@@ -1,7 +1,7 @@
+import subprocess
+
 import wandb
 from simple_slurm import Slurm
-
-from slurm_sweep._logging import logger
 
 
 class SweepManager:
@@ -95,9 +95,16 @@ class SweepManager:
         command = f'wandb agent "{self.entity}/{self.project_name}/{self.sweep_id}"'
         slurm.add_cmd(command)
 
-        logger.info("Submitting SLURM job with the following configuration:\n%s", slurm)
-        slurm.sbatch(
-            shell=shell,
-            job_file=job_file,
-            convert=convert,
-        )
+        # Write to file and submit
+        with open(job_file, "w") as fid:
+            fid.write(slurm.script(shell, convert))
+        cmd = f"sbatch {job_file}"
+
+        subprocess.run(cmd, shell=True)
+
+        # logger.info("Submitting SLURM job with the following configuration:\n%s", slurm)
+        # slurm.sbatch(
+        #     shell=shell,
+        #     job_file=job_file,
+        #     convert=convert,
+        # )
