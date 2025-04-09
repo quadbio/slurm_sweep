@@ -39,3 +39,16 @@ def run_sweep(config: str = typer.Argument(help="Path to the configuration YAML 
         mamba_env=general_config.get("mamba_env"),
         modules=general_config.get("modules"),
     )
+
+
+@app.command()
+def validate_config(config: str = typer.Argument(help="Path to the configuration YAML file.")):
+    """Validate the configuration file. See the ``examples/`` folder for examples."""
+    from slurm_sweep._logging import logger
+    from slurm_sweep.utils import ConfigValidator
+
+    # Validate and load the configuration
+    validator = ConfigValidator(config_path=config)
+    validator.load_config()
+    validator.validate()
+    logger.info("Configuration file '%s' is valid.", config)
