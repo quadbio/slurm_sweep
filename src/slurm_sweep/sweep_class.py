@@ -13,6 +13,17 @@ class SweepManager:
         self.entity: str | None = None
         self.sweep_id: str | None = None
 
+    def __repr__(self) -> str:
+        """
+        Return a string representation of the SweepManager instance.
+
+        Returns
+        -------
+        str
+            A string showing the current state of the SweepManager instance.
+        """
+        return f"SweepManager(project_name={self.project_name!r}, entity={self.entity!r}, sweep_id={self.sweep_id!r})"
+
     def register_sweep(self, sweep_config: dict, project_name: str | None = None, entity: str | None = None) -> None:
         """
         Register a sweep with wandb using the provided sweep configuration.
