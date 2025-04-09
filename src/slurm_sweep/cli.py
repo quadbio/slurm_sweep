@@ -1,15 +1,15 @@
 import typer
 
+from slurm_sweep._logging import logger
+from slurm_sweep.sweep_class import SweepManager
+from slurm_sweep.utils import ConfigValidator
+
 app = typer.Typer()
 
 
 @app.command()
 def run_sweep(config: str = typer.Argument(help="Path to the configuration YAML file.")):
     """Run hyperparameter sweeps on SLURM clusters using wandb."""
-    from slurm_sweep._logging import logger
-    from slurm_sweep.sweep_class import SweepManager
-    from slurm_sweep.utils import ConfigValidator
-
     # Validate and load the configuration
     validator = ConfigValidator(config_path=config)
     validator.load_config()
@@ -44,10 +44,6 @@ def run_sweep(config: str = typer.Argument(help="Path to the configuration YAML 
 @app.command()
 def validate_config(config: str = typer.Argument(help="Path to the configuration YAML file.")):
     """Validate the configuration file. See the ``examples/`` folder for examples."""
-    from slurm_sweep._logging import logger
-    from slurm_sweep.utils import ConfigValidator
-
-    # Validate and load the configuration
     validator = ConfigValidator(config_path=config)
     validator.load_config()
     validator.validate()
