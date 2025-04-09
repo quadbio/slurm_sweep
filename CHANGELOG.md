@@ -10,5 +10,12 @@ and this project adheres to [Semantic Versioning][].
 
 ## [Unreleased]
 
+## [v.0.1.1]
+
+### Added
+- Set up pre-commit.ci and codecov #4
+- Relese on PyPI
+
+
 ## [v.0.1.0]
 Basic version of this package to create a `submit.sh` script and initialize a hyperparameter sweep on W&B.

@@ -1,8 +1,12 @@
 # slurm_sweep: hyperparameter sweeps with W&B on SLURM clusters
 
 [![Tests][badge-tests]][tests]
+[![Coverage][badge-coverage]][coverage]
+[![Pre-commit.ci][badge-pre-commit]][pre-commit]
 
 [badge-tests]: https://github.com/quadbio/slurm_sweep/actions/workflows/test.yaml/badge.svg
+[badge-coverage]: https://codecov.io/gh/quadbio/slurm_sweep/branch/main/graph/badge.svg
+[badge-pre-commit]: https://results.pre-commit.ci/badge/github/quadbio/slurm_sweep/main.svg
 
 
 `slurm_sweep` is the missing (small) piece to efficiently run hyperparameter sweeps on SLURM clusters by combining the power of weights and biases ([W&B][]) and [simple_slurm][]. It allows you to efficiently parallelize sweeps with job arrays, while tracking experiments and results on W&B. All you need is:
@@ -65,3 +69,5 @@ If you found a bug, please use the [issue tracker][].
 [pypi]: https://pypi.org/project/slurm_sweep
 [simple_slurm]: https://github.com/amq92/simple_slurm
 [W&B]:  https://wandb.ai/site/
+[coverage]: https://codecov.io/gh/quadbio/slurm_sweep
+[pre-commit]: https://results.pre-commit.ci/latest/github/quadbio/slurm_sweep/main
