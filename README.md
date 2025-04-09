@@ -3,10 +3,12 @@
 [![Tests][badge-tests]][tests]
 [![Coverage][badge-coverage]][coverage]
 [![Pre-commit.ci][badge-pre-commit]][pre-commit]
+[![PyPI][badge-pypi]][pypi]
 
 [badge-tests]: https://github.com/quadbio/slurm_sweep/actions/workflows/test.yaml/badge.svg
 [badge-coverage]: https://codecov.io/gh/quadbio/slurm_sweep/branch/main/graph/badge.svg
 [badge-pre-commit]: https://results.pre-commit.ci/badge/github/quadbio/slurm_sweep/main.svg
+[badge-pypi]: https://img.shields.io/pypi/v/slurm_sweep.svg
 
 
 `slurm_sweep` is the missing (small) piece to efficiently run hyperparameter sweeps on SLURM clusters by combining the power of weights and biases ([W&B][]) and [simple_slurm][]. It allows you to efficiently parallelize sweeps with job arrays, while tracking experiments and results on W&B. All you need is:
@@ -38,13 +40,12 @@ If you don't have Python installed, we recommend installing [uv][].
 
 There are several alternative options to install slurm_sweep:
 
-<!--
-1) Install the latest release of `slurm_sweep` from [PyPI][]:
+1. Install the latest release of `slurm_sweep` from [PyPI][]:
 
 ```bash
 pip install slurm_sweep
 ```
--->
+
 
 1. Install the latest development version:
 
@@ -71,3 +72,4 @@ If you found a bug, please use the [issue tracker][].
 [W&B]:  https://wandb.ai/site/
 [coverage]: https://codecov.io/gh/quadbio/slurm_sweep
 [pre-commit]: https://results.pre-commit.ci/latest/github/quadbio/slurm_sweep/main
+[pypi]: https://pypi.org/project/slurm_sweep/
