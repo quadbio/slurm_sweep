@@ -54,7 +54,7 @@ class SweepManager:
         slurm_parameters: dict | None = None,
         mamba_env: str | None = None,
         job_file: str = "submit.sh",
-        convert: bool = True,
+        convert: bool = False,
         shell: str = "/bin/bash",
         modules: str | None = None,
     ) -> None:
@@ -96,7 +96,7 @@ class SweepManager:
         command = f'wandb agent "{self.sweep_id}"'
         slurm.add_cmd(command)
 
-        logger.info("Submitting SLURM job with the following configuration: %s", slurm)
+        logger.info("Submitting SLURM job with the following configuration:\n%s", slurm)
         slurm.sbatch(
             shell=shell,
             job_file=job_file,

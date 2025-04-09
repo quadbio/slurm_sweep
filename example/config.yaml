@@ -3,17 +3,14 @@ general:
   mamba_env: py312
   # sweep_id: YOUR_SWEEP_ID # only provide this for existing sweeps
   organization: spatial_vi # put the organization or team name here
-  modules:
-    - stack
-    - eth_proxy
+  modules: stack eth_proxy
 
 slurm:
   time: "00:30:00"
   mem_per_cpu: "8G"
   job_name: sweep_test_2
-  output: slurm-%j.out
-  error: slurm-%j.err
-  array: "0-10"
+  output: slurm_logs/wandb_grid_%A_%a.out
+  array: "0-2"
 
 wandb:
   program: train.py
