@@ -48,7 +48,7 @@ class ConfigValidator:
         Raises
         ------
         ValueError
-            If the mandatory `wandb` block is missing or invalid.
+            If the mandatory `wandb` or `general` block is missing or invalid.
         """
         # Validate the `wandb` block
         if "wandb" not in self.config:
@@ -64,8 +64,15 @@ class ConfigValidator:
                 "Refer to https://docs.wandb.ai/guides/sweeps/define-sweep-configuration/ for details."
             )
 
-        # Ensure the `general` block exists
-        self.config.setdefault("general", {})
+        # Validate the `general` block
+        if "general" not in self.config:
+            raise ValueError("The `general` block is mandatory and must be defined in the configuration file.")
+
+        general_config = self.config["general"]
+        if not isinstance(general_config, dict):
+            raise ValueError("The `general` block must be a dictionary.")
+        if "entity" not in general_config or "project_name" not in general_config:
+            raise ValueError("The `general` block must include `entity` and `project_name` keys.")
 
         # Ensure the `slurm` block exists
         self.config.setdefault("slurm", {})
