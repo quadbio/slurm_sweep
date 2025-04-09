@@ -24,7 +24,9 @@ class SweepManager:
         """
         return f"SweepManager(project_name={self.project_name!r}, entity={self.entity!r}, sweep_id={self.sweep_id!r})"
 
-    def register_sweep(self, sweep_config: dict, project_name: str | None = None, entity: str | None = None) -> None:
+    def register_sweep(
+        self, sweep_config: dict, project_name: str = "uncategorized", entity: str | None = None
+    ) -> None:
         """
         Register a sweep with wandb using the provided sweep configuration.
 
