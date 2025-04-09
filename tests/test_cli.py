@@ -18,13 +18,16 @@ def test_configure_sweep(valid_cli_config_file, tmp_path, expected_slurm_script)
     # Define a custom output path for the submission script
     submit_script = tmp_path / "custom_submit.sh"
 
-    with patch("wandb.sweep", return_value="test-sweep-id"):
+    with patch("wandb.login") as mock_login, patch("wandb.sweep", return_value="test-sweep-id"):
         # Pass the custom output path to the CLI command
         result = runner.invoke(app, ["configure-sweep", valid_cli_config_file, "--output", str(submit_script)])
 
         # Verify the CLI command executed successfully
         assert result.exit_code == 0
         assert "Registering the sweep" in result.stdout
+
+        # Verify that wandb.login was called
+        mock_login.assert_called_once()
 
         # Verify the generated SLURM script
         assert submit_script.exists()
