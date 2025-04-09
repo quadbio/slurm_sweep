@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning][].
 ## [Unreleased]
 
 ### Added
-- PyPI badge and installation instructions (#6)
+- PyPI badge and installation instructions [#6]
 
 ## [v0.1.3]
 
@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning][].
 ## [v0.1.1]
 
 ### Added
-- Set up pre-commit.ci and codecov (#4)
+- Set up pre-commit.ci and codecov [#4]
 - Release on PyPI
 
 ## [v0.1.0]
