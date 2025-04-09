@@ -80,3 +80,26 @@ source $HOME/.bashrc
 mamba activate test_env
 wandb agent "test_entity/test_project/test-sweep-id"
 """
+
+
+@pytest.fixture
+def valid_cli_config_file(tmp_path):
+    config = """
+    wandb:
+      program: train.py
+      method: grid
+      parameters:
+        lr:
+          values: [0.01, 0.1]
+    general:
+      entity: test_entity
+      project_name: test_project
+      mamba_env: test_env
+      modules: test_module
+    slurm:
+      time: "01:00:00"
+      partition: test
+    """
+    config_path = tmp_path / "cli_config.yaml"
+    config_path.write_text(config)
+    return str(config_path)
