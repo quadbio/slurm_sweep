@@ -14,19 +14,22 @@ def test_validate_config(valid_cli_config_file):
     assert "is valid" in result.stdout
 
 
-def test_configure_sweep(valid_cli_config_file):
-    with (
-        patch("slurm_sweep.sweep_class.SweepManager.register_sweep") as mock_register,
-        patch("slurm_sweep.sweep_class.SweepManager.write_script") as mock_write,
-    ):
-        mock_register.return_value = None
-        mock_write.return_value = None
+def test_configure_sweep(valid_cli_config_file, tmp_path, expected_slurm_script):
+    # Define a custom output path for the submission script
+    submit_script = tmp_path / "custom_submit.sh"
 
-        result = runner.invoke(app, ["configure-sweep", valid_cli_config_file])
+    with patch("wandb.sweep", return_value="test-sweep-id"):
+        # Pass the custom output path to the CLI command
+        result = runner.invoke(app, ["configure-sweep", valid_cli_config_file, "--output", str(submit_script)])
 
+        # Verify the CLI command executed successfully
         assert result.exit_code == 0
         assert "Registering the sweep" in result.stdout
 
-        # Verify that the sweep was registered and the script was written
-        mock_register.assert_called_once()
-        mock_write.assert_called_once()
+        # Verify the generated SLURM script
+        assert submit_script.exists()
+        with open(submit_script, encoding="utf-8") as f:
+            content = f.read()
+
+        # Compare the generated script with the expected script
+        assert content == expected_slurm_script

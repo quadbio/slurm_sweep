@@ -8,7 +8,10 @@ app = typer.Typer()
 
 
 @app.command()
-def configure_sweep(config: str = typer.Argument(help="Path to the configuration YAML file.")):
+def configure_sweep(
+    config: str = typer.Argument(help="Path to the configuration YAML file."),
+    output: str = typer.Option("submit.sh", help="Path to the output SLURM submission script."),
+):
     """Produce a submit.sh file to run a hyperparameter sweep though wandb on a SLURM cluster."""
     # Validate and load the configuration
     validator = ConfigValidator(config_path=config)
@@ -39,6 +42,7 @@ def configure_sweep(config: str = typer.Argument(help="Path to the configuration
         slurm_parameters=slurm_config,
         mamba_env=general_config.get("mamba_env"),
         modules=general_config.get("modules"),
+        job_file=output,
     )
 
 
