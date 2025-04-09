@@ -38,20 +38,19 @@ Once you're ready, you can test your config file using `slurm-sweep validate_con
 You need to have Python 3.10 or newer installed on your system.
 If you don't have Python installed, we recommend installing [uv][].
 
-There are several alternative options to install slurm_sweep:
+There are two alternative options to install `slurm_sweep`:
 
-1. Install the latest release of `slurm_sweep` from [PyPI][]:
+- **Install the latest release from [PyPI][]**:
 
-```bash
-pip install slurm_sweep
-```
+  ```bash
+  pip install slurm_sweep
+  ```
 
+- **Install the latest development version**:
 
-1. Install the latest development version:
-
-```bash
-pip install git+https://github.com/quadbio/slurm_sweep.git@main
-```
+  ```bash
+  pip install git+https://github.com/quadbio/slurm_sweep.git@main
+  ```
 
 ## Release notes
 
