@@ -54,6 +54,7 @@ class SweepManager:
         convert: bool = False,
         shell: str = "/bin/bash",
         modules: str | None = None,
+        count: int | None = None,  # New optional parameter
     ) -> None:
         """
         Produce a submission script to run a grid search with wandb on a SLURM cluster.
@@ -72,6 +73,9 @@ class SweepManager:
             The shell to use for the SLURM job.
         modules
             A space-separated string of modules to load (e.g., "stack eth_proxy").
+        count
+            Optional count parameter for the wandb agent command. On SLURM clusters, it is recommended
+            to set this to 1 to avoid multiple agents running on the same node.
         """
         if not self.sweep_id:
             raise ValueError("Sweep ID is not set. Please register the sweep first.")
@@ -89,8 +93,11 @@ class SweepManager:
             slurm.add_cmd("source $HOME/.bashrc")
             slurm.add_cmd(f"mamba activate {mamba_env}")
 
-        # Add the wandb agent command
-        command = f'wandb agent "{self.entity}/{self.project_name}/{self.sweep_id}"'
+        # Add the wandb agent command with optional --count flag for SLURM compatibility
+        count_flag = f"--count {count}" if count is not None else ""
+        command = (
+            f'wandb agent{f" {count_flag}" if count_flag else ""} "{self.entity}/{self.project_name}/{self.sweep_id}"'
+        )
         slurm.add_cmd(command)
 
         # Write to file
