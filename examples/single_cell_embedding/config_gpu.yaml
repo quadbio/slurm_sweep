@@ -1,0 +1,51 @@
+general:
+  project_name: scembed_gpu_comparison
+  mamba_env: rapids_jax
+  entity: spatial_vi
+  modules: stack eth_proxy
+
+slurm:
+  ntasks: 1
+  time: "04:00:00"
+  mem_per_cpu: "16G"
+  job_name: scembed_gpu
+  output: slurm_logs/gpu_%A_%a.out
+  array: "0-4"
+  gpus: rtx_4090:1
+
+wandb:
+  program: train.py
+  method: grid
+  name: gpu_methods
+  metric:
+    goal: maximize
+    name: scib_total_score
+  parameters:
+    method:
+      values: ["harmony", "scvi", "scanvi", "scpoli"]
+
+    # Harmony parameters
+    harmony_theta:
+      values: [1.0, 2.0, 5.0]
+
+    # scVI parameters
+    scvi_n_latent:
+      values: [10, 30, 50]
+    scvi_n_layers:
+      values: [1, 2]
+
+    # scANVI parameters (inherits from scVI)
+    scanvi_n_latent:
+      values: [10, 30]
+    scanvi_n_layers:
+      value: 2
+    scanvi_max_epochs_scanvi:
+      values: [20, 50]
+
+    # scPoli parameters
+    scpoli_embedding_dims:
+      values: [5, 10]
+    scpoli_n_epochs:
+      value: 50
+    scpoli_pretraining_epochs:
+      value: 40

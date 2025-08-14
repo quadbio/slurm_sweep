@@ -1,0 +1,45 @@
+[build-system]
+build-backend = "hatchling.build"
+
+requires = [ "hatchling" ]
+
+[project]
+name = "scembed-example"
+version = "0.0.1"
+requires-python = ">=3.10"
+classifiers = [
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+  # Single-cell analysis
+  "scanpy>=1.11.4",
+
+  # Evaluation
+  "scib-metrics>=0.5.6",
+]
+
+optional-dependencies.all = [
+  # All integration methods
+  "scembed-example[cpu,gpu]",
+]
+optional-dependencies.cpu = [
+  # CPU-based integration methods
+  "pyliger>=0.2.4",   # Latest stable version (0.2.4)
+  "scanorama>=1.7.4",
+]
+optional-dependencies.gpu = [
+  # GPU-based integration methods
+  "harmony-pytorch", # GPU-accelerated Harmony
+  "scarches>=0.6.1", # for scPoli
+  "scvi-tools>=1.3",
+  # PyTorch (usually auto-installed with scvi-tools)
+  "torch>=2.8",
+  "torchvision>=0.23",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = [ "src/scembed" ]

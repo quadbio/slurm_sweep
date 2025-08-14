@@ -1,0 +1,38 @@
+general:
+  project_name: scembed_cpu_comparison
+  mamba_env: py312
+  entity: spatial_vi
+  modules: stack eth_proxy
+
+slurm:
+  ntasks: 1
+  time: "02:00:00"
+  mem_per_cpu: "32G"
+  job_name: scembed_cpu
+  output: slurm_logs/cpu_%A_%a.out
+  array: "0-4"
+
+wandb:
+  program: train.py
+  method: grid
+  name: cpu_methods
+  metric:
+    goal: maximize
+    name: scib_total_score
+  parameters:
+    method:
+      values: ["pca", "liger", "scanorama"]
+
+    # Note: PCA uses precomputed embedding from data preprocessing (no parameters)
+
+    # LIGER parameters
+    liger_k:
+      values: [20, 30]
+    liger_lambda_reg:
+      values: [1.0, 5.0]
+
+    # Scanorama parameters
+    scanorama_sigma:
+      values: [15.0, 30.0]
+    scanorama_alpha:
+      values: [0.1, 0.3]
