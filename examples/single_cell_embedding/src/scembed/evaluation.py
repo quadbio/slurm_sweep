@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import scanpy as sc
 
+from slurm_sweep._logging import logger
+
 
 class IntegrationEvaluator:
     """Evaluator for single-cell integration methods."""
@@ -20,6 +22,7 @@ class IntegrationEvaluator:
         batch_key: str = "batch",
         cell_type_key: str = "cell_type",
         output_dir: str | Path | None = None,
+        baseline_embedding_key: str = "X_pca_unintegrated",
     ):
         """
         Initialize integration evaluator.
@@ -36,11 +39,15 @@ class IntegrationEvaluator:
             Key in .obs for cell type labels.
         output_dir
             Directory for saving evaluation outputs. If None, creates temporary directory.
+        baseline_embedding_key
+            Key in .obsm containing the unintegrated baseline embedding. If this embedding
+            doesn't exist, it will be computed automatically.
         """
         self.adata = adata
         self.embedding_key = embedding_key
         self.batch_key = batch_key
         self.cell_type_key = cell_type_key
+        self.baseline_embedding_key = baseline_embedding_key
 
         # Setup output directories
         self._temp_dir = None
@@ -67,17 +74,17 @@ class IntegrationEvaluator:
         # Storage for results
         self.scib_metrics: pd.DataFrame | None = None
 
-        print(f"Initialized evaluator for '{embedding_key}', saving to '{self.output_dir}'")
+        logger.info("Initialized evaluator for '%s', saving to '%s", embedding_key, self.output_dir)
 
     def _ensure_unintegrated_baseline(self) -> None:
         """Ensure unintegrated PCA baseline exists for scIB evaluation."""
-        if "X_pca_unintegrated" not in self.adata.obsm:
-            print("Computing unintegrated PCA baseline...")
+        if self.baseline_embedding_key not in self.adata.obsm:
+            logger.info("Computing unintegrated PCA baseline as '%s'...", self.baseline_embedding_key)
             sc.pp.normalize_total(self.adata, target_sum=1e4)
             sc.pp.log1p(self.adata)
-            sc.tl.pca(self.adata, n_comps=50, key_added="X_pca_unintegrated")
+            sc.tl.pca(self.adata, n_comps=50, key_added=self.baseline_embedding_key)
 
-    def evaluate_scib(self, min_max_scale: bool = True) -> None:
+    def evaluate_scib(self, min_max_scale: bool = False) -> None:
         """
         Evaluate integration using scIB metrics.
 
@@ -91,7 +98,7 @@ class IntegrationEvaluator:
         except ImportError as exc:
             raise ImportError("scib-metrics is required for evaluation") from exc
 
-        print("Computing scIB metrics...")
+        logger.info("Computing scIB metrics...")
 
         # Filter cells without cell type annotations
         before_filter = self.adata.shape[0]
@@ -99,8 +106,8 @@ class IntegrationEvaluator:
         adata_filtered = self.adata[~cell_mask]
         after_filter = adata_filtered.shape[0]
 
-        print(f"Filtered {before_filter - after_filter} cells without {self.cell_type_key} annotations")
-        print(f"Evaluating on {after_filter:,} cells")
+        logger.info("Filtered %d cells without %s annotations", before_filter - after_filter, self.cell_type_key)
+        logger.info("Evaluating on %s cells", f"{after_filter:,}")
 
         # Set up benchmarker
         bm = Benchmarker(
@@ -108,7 +115,7 @@ class IntegrationEvaluator:
             batch_key=self.batch_key,
             label_key=self.cell_type_key,
             embedding_obsm_keys=[self.embedding_key],
-            pre_integrated_embedding_obsm_key="X_pca_unintegrated",
+            pre_integrated_embedding_obsm_key=self.baseline_embedding_key,
             bio_conservation_metrics=BioConservation(isolated_labels=False),
             batch_correction_metrics=BatchCorrection(),
             n_jobs=-1,
@@ -120,7 +127,7 @@ class IntegrationEvaluator:
 
         # Store evaluation results
         self.scib_metrics = bm.get_results(min_max_scale=min_max_scale)
-        print("scIB metrics evaluation completed.")
+        logger.info("scIB metrics evaluation completed.")
 
     def compute_and_show_embeddings(self, key_added: str = "X_umap", use_rapids: bool = False) -> None:
         """
@@ -133,7 +140,7 @@ class IntegrationEvaluator:
         use_rapids
             Whether to use rapids_singlecell for acceleration.
         """
-        print("Computing UMAP embedding...")
+        logger.info("Computing UMAP embedding...")
 
         if use_rapids:
             try:
@@ -143,7 +150,7 @@ class IntegrationEvaluator:
                 rsc.pp.neighbors(self.adata, use_rep=self.embedding_key, n_neighbors=15)
                 rsc.tl.umap(self.adata, key_added=key_added)
             except ImportError:
-                print("RAPIDS not available, falling back to scanpy")
+                logger.info("RAPIDS not available, falling back to scanpy")
                 use_rapids = False
 
         if not use_rapids:
@@ -158,7 +165,7 @@ class IntegrationEvaluator:
             plt.savefig(self.figures_dir / "umap_evaluation.png", bbox_inches="tight")
             plt.close()
 
-        print(f"UMAP embeddings plotted and saved to {self.figures_dir}")
+        logger.info("UMAP embeddings plotted and saved to %s", self.figures_dir)
 
     def get_summary_metrics(self) -> dict[str, Any]:
         """
@@ -174,3 +181,18 @@ class IntegrationEvaluator:
 
         method_results = self.scib_metrics.loc[self.embedding_key]
         return method_results.to_dict()
+
+    def __repr__(self) -> str:
+        """String representation of the evaluator."""
+        data_info = f"{self.adata.n_obs:,} cells × {self.adata.n_vars:,} genes"
+        embedding_status = "✓" if self.embedding_key in self.adata.obsm else "✗"
+        evaluation_status = "evaluated" if self.scib_metrics is not None else "not evaluated"
+
+        return (
+            f"IntegrationEvaluator("
+            f"embedding='{self.embedding_key}' {embedding_status}, "
+            f"batch_key='{self.batch_key}', "
+            f"cell_type_key='{self.cell_type_key}', "
+            f"{evaluation_status}, "
+            f"{data_info})"
+        )

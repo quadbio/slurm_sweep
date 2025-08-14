@@ -39,8 +39,6 @@ class PrecomputedEmbeddingMethod(BaseIntegrationMethod):
         if self.source_embedding_key != self.embedding_key:
             self.adata.obsm[self.embedding_key] = self.adata.obsm[self.source_embedding_key].copy()
 
-        return self.adata
-
 
 class LIGERMethod(BaseIntegrationMethod):
     """LIGER integration method."""
@@ -102,7 +100,6 @@ class LIGERMethod(BaseIntegrationMethod):
             embedding[batch_mask] = liger_data.adata_list[i].obsm["H_norm"]
 
         self.adata.obsm[self.embedding_key] = embedding
-        return self.adata
 
 
 class ScanoramaMethod(BaseIntegrationMethod):
@@ -153,4 +150,3 @@ class ScanoramaMethod(BaseIntegrationMethod):
             embedding[batch_mask] = adata_list[i].obsm["X_scanorama"]
 
         self.adata.obsm[self.embedding_key] = embedding
-        return self.adata

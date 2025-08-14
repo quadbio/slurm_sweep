@@ -14,6 +14,8 @@ from scembed.methods import (
     scVIMethod,
 )
 
+from slurm_sweep._logging import logger
+
 
 def get_method_instance(adata, method_name: str, method_params: dict) -> BaseIntegrationMethod:
     """
@@ -59,43 +61,44 @@ def main():
     method_name = wandb.config.method
     method_params = getattr(wandb.config, method_name.lower(), {}).get("parameters", {})
 
-    print(f"Method: {method_name}")
-    print(f"Method params: {method_params}")
+    logger.info("Method: %s", method_name)
+    logger.info("Method params: %s", method_params)
 
     # Load and preprocess data
-    print("Loading lung atlas dataset...")
+    logger.info("Loading lung atlas dataset...")
     adata = sc.read("data/lung_atlas.h5ad", backup_url="https://figshare.com/ndownloader/files/24539942")
-    print(f"Loaded: {adata.n_obs:,} cells × {adata.n_vars:,} genes")
+    logger.info("Loaded: %s cells × %s genes", f"{adata.n_obs:,}", f"{adata.n_vars:,}")
 
     # Simple preprocessing
     sc.pp.highly_variable_genes(adata, n_top_genes=2000, flavor="cell_ranger", batch_key="batch")
-    sc.tl.pca(adata, n_comps=30, mask_var="highly_variable")
+    sc.tl.pca(adata, n_comps=30, use_highly_variable=True)
 
     # Create method instance
-    print(f"Initializing {method_name} method...")
+    logger.info("Initializing %s method...", method_name)
     method = get_method_instance(adata, method_name, method_params)
 
     # Fit and transform
-    print("Fitting method...")
+    logger.info("Fitting method...")
     method.fit()
 
-    print("Transforming data...")
+    logger.info("Transforming data...")
     method.transform()
 
     # Save model if applicable
     model_path = method.save_model(method.models_dir)
     if model_path is not None:
-        print(f"Model saved to {model_path}")
+        logger.info("Model saved to %s", model_path)
         wandb.log_model(str(model_path), name="trained_model")
 
     # Evaluate integration
-    print("Evaluating integration...")
+    logger.info("Evaluating integration...")
     evaluator = IntegrationEvaluator(
         adata=method.adata,
         embedding_key=method.embedding_key,
         batch_key=method.batch_key,
         cell_type_key=method.cell_type_key,
         output_dir=method.output_dir,
+        baseline_embedding_key="X_pca",  # Use existing PCA from preprocessing
     )
 
     # Run scIB evaluation
@@ -106,7 +109,7 @@ def main():
     evaluator.compute_and_show_embeddings()
     wandb.log({"umap_evaluation": wandb.Image(str(evaluator.figures_dir / "umap_evaluation.png"))})
 
-    print("✓ Run completed successfully")
+    logger.info("✓ Run completed successfully")
 
 
 if __name__ == "__main__":

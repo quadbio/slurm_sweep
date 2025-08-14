@@ -44,7 +44,6 @@ class HarmonyMethod(BaseIntegrationMethod):
 
         # Add embedding to data
         self.adata.obsm[self.embedding_key] = harmony_embedding
-        return self.adata
 
 
 class scVIMethod(BaseIntegrationMethod):
@@ -94,7 +93,6 @@ class scVIMethod(BaseIntegrationMethod):
         # Get latent representation
         latent = self.model.get_latent_representation()
         self.adata.obsm[self.embedding_key] = latent
-        return self.adata
 
     def save_model(self, path: Path) -> Path | None:
         """Save scVI model."""
@@ -168,7 +166,6 @@ class scANVIMethod(BaseIntegrationMethod):
         # Get latent representation
         latent = self.model.get_latent_representation()
         self.adata.obsm[self.embedding_key] = latent
-        return self.adata
 
     def save_model(self, path: Path) -> Path | None:
         """Save scANVI model."""
@@ -253,7 +250,6 @@ class scPoliMethod(BaseIntegrationMethod):
         # Get latent representation
         latent = self.model.get_latent(self.adata, mean=True)
         self.adata.obsm[self.embedding_key] = latent
-        return self.adata
 
     def save_model(self, path: Path) -> Path | None:
         """Save scPoli model."""

@@ -7,6 +7,8 @@ from typing import Any
 
 import anndata as ad
 
+from slurm_sweep._logging import logger
+
 
 class BaseIntegrationMethod(ABC):
     """Abstract base class for single-cell integration methods."""
@@ -55,7 +57,7 @@ class BaseIntegrationMethod(ABC):
         self.models_dir.mkdir(parents=True, exist_ok=True)
         self.logs_dir.mkdir(parents=True, exist_ok=True)
 
-        print(f"Initialized {self.name} method, saving outputs to '{self.output_dir}'.")
+        logger.info("Initialized %s method, saving outputs to '%s'.", self.name, self.output_dir)
 
     def validate_adata(self, adata: ad.AnnData) -> None:
         """
@@ -77,13 +79,13 @@ class BaseIntegrationMethod(ABC):
 
         # Check if counts layer exists (if not using X directly)
         if self.counts_layer != "X" and self.counts_layer not in adata.layers:
-            print(f"Warning: Counts layer '{self.counts_layer}' not found in adata.layers")
+            logger.warning("Counts layer '%s' not found in adata.layers", self.counts_layer)
 
         # Check for highly variable genes (most methods will need this)
         if self.hvg_key not in adata.var.columns:
-            print(f"Warning: HVG key '{self.hvg_key}' not found in adata.var")
+            logger.warning("HVG key '%s' not found in adata.var", self.hvg_key)
 
-        print(f"Data validation passed for {self.name} method.")
+        logger.info("Data validation passed for %s method.", self.name)
 
     @abstractmethod
     def fit(self) -> None:
@@ -94,29 +96,22 @@ class BaseIntegrationMethod(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def transform(self) -> ad.AnnData:
+    def transform(self) -> None:
         """Transform the data and add embedding to obsm.
 
         Uses self.adata which was validated during initialization.
-
-        Returns
-        -------
-        ad.AnnData
-            Data with integration embedding added to .obsm[self.embedding_key].
+        Modifies self.adata in place by adding embedding to .obsm[self.embedding_key].
         """
         raise NotImplementedError
 
-    def fit_transform(self) -> ad.AnnData:
+    def fit_transform(self) -> None:
         """
         Fit the method and transform the data.
 
-        Returns
-        -------
-        ad.AnnData
-            Data with integration embedding.
+        Modifies self.adata in place.
         """
         self.fit()
-        return self.transform()
+        self.transform()
 
     def save_model(self, path: Path) -> Path | None:
         """
