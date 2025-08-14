@@ -24,28 +24,33 @@ wandb:
     method:
       values: ["harmony", "scvi", "scanvi", "scpoli"]
 
-    # Harmony parameters
-    harmony_theta:
-      values: [1.0, 2.0, 5.0]
+    # Method-specific parameters (nested structure)
+    harmony:
+      parameters:
+        theta:
+          values: [1.0, 2.0, 5.0]
 
-    # scVI parameters
-    scvi_n_latent:
-      values: [10, 30, 50]
-    scvi_n_layers:
-      values: [1, 2]
+    scvi:
+      parameters:
+        n_latent:
+          values: [10, 30, 50]
+        n_layers:
+          values: [1, 2]
 
-    # scANVI parameters (inherits from scVI)
-    scanvi_n_latent:
-      values: [10, 30]
-    scanvi_n_layers:
-      value: 2
-    scanvi_max_epochs_scanvi:
-      values: [20, 50]
+    scanvi:
+      parameters:
+        n_latent:
+          values: [10, 30]
+        n_layers:
+          value: 2
+        max_epochs_scanvi:
+          values: [20, 50]
 
-    # scPoli parameters
-    scpoli_embedding_dims:
-      values: [5, 10]
-    scpoli_n_epochs:
-      value: 50
-    scpoli_pretraining_epochs:
-      value: 40
+    scpoli:
+      parameters:
+        embedding_dims:
+          values: [5, 10]
+        n_epochs:
+          value: 50
+        pretraining_epochs:
+          value: 40

@@ -18,3 +18,7 @@ __pycache__/
 # example outputs
 wandb/
 slurm_logs/
+.ipynb_checkpoints/
+
+# data files
+*.h5ad

@@ -1,14 +1,7 @@
 """Main training script for single-cell integration method comparison."""
 
-import sys
-from pathlib import Path
-
+import scanpy as sc
 import wandb
-
-# Add the src directory to the path for local imports
-sys.path.append(str(Path(__file__).parent / "src"))
-
-from scembed.data_loader import load_lung_atlas
 from scembed.evaluation import IntegrationEvaluator
 from scembed.methods import (
     BaseIntegrationMethod,
@@ -57,42 +50,26 @@ def get_method_instance(adata, method_name: str, method_params: dict) -> BaseInt
     return method_class(adata, **method_params)
 
 
-def extract_method_params(config: dict, method_name: str) -> dict:
-    """Extract method-specific parameters from wandb config."""
-    # Look for method-specific parameter sections
-    param_key = f"{method_name.lower()}_params"
-    if param_key in config:
-        return config[param_key]
-
-    # Fallback to extracting parameters by method name prefix
-    method_params = {}
-    prefix = f"{method_name.lower()}_"
-
-    for key, value in config.items():
-        if key.startswith(prefix):
-            param_name = key[len(prefix) :]
-            method_params[param_name] = value
-
-    return method_params
-
-
 def main():
     """Main training function."""
     # Initialize wandb
     wandb.init()
 
-    # Extract method and parameters from config
-    method_name = wandb.config.get("method")
-    if method_name is None:
-        raise ValueError("Method name must be specified in config")
+    # Extract method and parameters from config - simple and direct
+    method_name = wandb.config.method
+    method_params = getattr(wandb.config, method_name.lower(), {}).get("parameters", {})
 
-    method_params = extract_method_params(dict(wandb.config), method_name)
     print(f"Method: {method_name}")
     print(f"Method params: {method_params}")
 
-    # Load data
-    print("Loading data...")
-    adata = load_lung_atlas()
+    # Load and preprocess data
+    print("Loading lung atlas dataset...")
+    adata = sc.read("data/lung_atlas.h5ad", backup_url="https://figshare.com/ndownloader/files/24539942")
+    print(f"Loaded: {adata.n_obs:,} cells × {adata.n_vars:,} genes")
+
+    # Simple preprocessing
+    sc.pp.highly_variable_genes(adata, n_top_genes=2000, flavor="cell_ranger", batch_key="batch")
+    sc.tl.pca(adata, n_comps=30, mask_var="highly_variable")
 
     # Create method instance
     print(f"Initializing {method_name} method...")

@@ -155,4 +155,6 @@ class BaseIntegrationMethod(ABC):
     def __repr__(self) -> str:
         """String representation of the method."""
         params_str = ", ".join(f"{k}={v}" for k, v in self.params.items())
-        return f"{self.__class__.__name__}({params_str})"
+        status = "fitted" if self.is_fitted else "not fitted"
+        data_info = f"{self.adata.n_obs} cells × {self.adata.n_vars} genes"
+        return f"{self.__class__.__name__}({params_str}) [{status}, {data_info}]"
