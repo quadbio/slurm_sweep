@@ -6,6 +6,8 @@ from tempfile import TemporaryDirectory
 from typing import Any
 
 import anndata as ad
+import numpy as np
+from scipy.sparse import issparse
 
 from slurm_sweep._logging import logger
 
@@ -80,6 +82,12 @@ class BaseIntegrationMethod(ABC):
         # Check if counts layer exists (if not using X directly)
         if self.counts_layer != "X" and self.counts_layer not in adata.layers:
             logger.warning("Counts layer '%s' not found in adata.layers", self.counts_layer)
+        else:
+            count_data = adata.layers[self.counts_layer] if self.counts_layer != "X" else adata.X
+            is_integer = np.all((count_data.data if issparse(count_data) else count_data) % 1 == 0)
+
+            if not is_integer:
+                logger.warning("Counts layer '%s' contains non-integer values", self.counts_layer)
 
         # Check for highly variable genes (most methods will need this)
         if self.hvg_key not in adata.var.columns:

@@ -17,7 +17,7 @@ class HarmonyMethod(BaseIntegrationMethod):
         Parameters
         ----------
         adata
-            Annotated data object.
+            Annotated data object to integrate.
         theta
             Diversity clustering penalty parameter.
         """
@@ -49,22 +49,32 @@ class HarmonyMethod(BaseIntegrationMethod):
 class scVIMethod(BaseIntegrationMethod):
     """scVI integration method."""
 
-    def __init__(self, adata, n_latent: int = 30, n_layers: int = 2, **kwargs):
+    def __init__(
+        self, adata, n_latent: int = 30, n_layers: int = 2, max_epochs: int = 100, accelerator: str = "auto", **kwargs
+    ):
         """
         Initialize scVI method.
 
         Parameters
         ----------
         adata
-            Annotated data object.
+            Annotated data object to integrate.
         n_latent
             Dimensionality of latent space.
         n_layers
             Number of hidden layers.
+        max_epochs
+            Maximum epochs for scVI training.
+        accelerator
+            Accelerator type for training. Options: "cpu", "gpu", "tpu", "ipu", "hpu", "mps", "auto".
         """
-        super().__init__(adata, n_latent=n_latent, n_layers=n_layers, **kwargs)
+        super().__init__(
+            adata, n_latent=n_latent, n_layers=n_layers, max_epochs=max_epochs, accelerator=accelerator, **kwargs
+        )
         self.n_latent = n_latent
         self.n_layers = n_layers
+        self.max_epochs = max_epochs
+        self.accelerator = accelerator
         self.model = None
 
     def fit(self):
@@ -82,7 +92,7 @@ class scVIMethod(BaseIntegrationMethod):
 
         # Create and train model
         self.model = scvi.model.SCVI(adata_hvg, n_latent=self.n_latent, n_layers=self.n_layers, gene_likelihood="nb")
-        self.model.train(max_epochs=100, early_stopping=True)
+        self.model.train(max_epochs=self.max_epochs, early_stopping=True, accelerator=self.accelerator)
         self.is_fitted = True
 
     def transform(self):
@@ -107,25 +117,48 @@ class scVIMethod(BaseIntegrationMethod):
 class scANVIMethod(BaseIntegrationMethod):
     """scANVI integration method."""
 
-    def __init__(self, adata, n_latent: int = 30, n_layers: int = 2, max_epochs_scanvi: int = 50, **kwargs):
+    def __init__(
+        self,
+        adata,
+        n_latent: int = 30,
+        n_layers: int = 2,
+        max_epochs: int = 100,
+        max_epochs_scanvi: int = 50,
+        accelerator: str = "auto",
+        **kwargs,
+    ):
         """
         Initialize scANVI method.
 
         Parameters
         ----------
         adata
-            Annotated data object.
+            Annotated data object to integrate.
         n_latent
             Dimensionality of latent space.
         n_layers
             Number of hidden layers.
+        max_epochs
+            Maximum epochs for scVI pretraining.
         max_epochs_scanvi
             Maximum epochs for scANVI training.
+        accelerator
+            Accelerator type for training. Options: "cpu", "gpu", "tpu", "ipu", "hpu", "mps", "auto".
         """
-        super().__init__(adata, n_latent=n_latent, n_layers=n_layers, max_epochs_scanvi=max_epochs_scanvi, **kwargs)
+        super().__init__(
+            adata,
+            n_latent=n_latent,
+            n_layers=n_layers,
+            max_epochs=max_epochs,
+            max_epochs_scanvi=max_epochs_scanvi,
+            accelerator=accelerator,
+            **kwargs,
+        )
         self.n_latent = n_latent
         self.n_layers = n_layers
+        self.max_epochs = max_epochs
         self.max_epochs_scanvi = max_epochs_scanvi
+        self.accelerator = accelerator
         self.scvi_model = None
         self.model = None
 
@@ -146,7 +179,7 @@ class scANVIMethod(BaseIntegrationMethod):
         self.scvi_model = scvi.model.SCVI(
             adata_hvg, n_latent=self.n_latent, n_layers=self.n_layers, gene_likelihood="nb"
         )
-        self.scvi_model.train(max_epochs=100, early_stopping=True)
+        self.scvi_model.train(max_epochs=self.max_epochs, early_stopping=True, accelerator=self.accelerator)
 
         # Create scANVI from scVI
         self.model = scvi.model.SCANVI.from_scvi_model(
@@ -155,7 +188,7 @@ class scANVIMethod(BaseIntegrationMethod):
             labels_key=self.cell_type_key,
             unlabeled_category="Unknown",
         )
-        self.model.train(max_epochs=self.max_epochs_scanvi)
+        self.model.train(max_epochs=self.max_epochs_scanvi, accelerator=self.accelerator)
         self.is_fitted = True
 
     def transform(self):
@@ -187,7 +220,7 @@ class scPoliMethod(BaseIntegrationMethod):
         Parameters
         ----------
         adata
-            Annotated data object.
+            Annotated data object to integrate.
         embedding_dims
             Dimensionality of condition embeddings.
         n_epochs
