@@ -5,8 +5,10 @@ Single-cell RNA-sequencing (scRNA-seq) measures gene expression in individual ce
 ## Overview
 Here, we use `slurm_sweep` to efficiently parallelize and track different data integration approaches on a small test dataset, and we compare their performance in terms of [scIB metrics](https://scib-metrics.readthedocs.io/en/stable/). For each data integration method, we compute a shared latent space, quantify integration performance in terms of batch correction and bio conservation, visualize the latent space with UMAP, store the model and embedding coordinates, and store all relevant data on wandb, so that we can retrieve it after the sweep.
 
+The setup here is that we have one shared config file for all CPU-based methods and one for all GPU-based methods - in reality, you can adjust granularity as you need, for example, you could have one config file per method to define exactly the resources that this method needs to run.
+
 ### Methods Implemented
-- **GPU-based methods**: scVI, scANVI, scPoli
+- **GPU-based methods**: scVI, scANVI, scPoli, ResolVI, scVIVA
 - **CPU-based methods**: Harmony, LIGER, Scanorama, PCA (baseline)
 
 ### Dataset
@@ -34,16 +36,16 @@ cd examples/single_cell_embedding
 pip install -e .
 
 # For CPU methods only
-pip install -e .[cpu]
+pip install -e ".[cpu]"
 
 # For GPU methods only
-pip install -e .[gpu]
+pip install -e ".[gpu]"
 
-# For all methods
-pip install -e .[all]
+# To use GPU acceleration in evaluation
+pip install -e ".[fast_metrics]"
 
-# For development
-pip install -e .[all,dev]
+# Install all optional dependencies
+pip install -e ".[all]"
 ```
 
 **Note**: If you encounter C++ compilation errors (e.g., with `louvain` or `annoy`), install those packages via conda first:
@@ -56,27 +58,11 @@ mamba install louvain python-annoy
 The package uses optional dependency groups to minimize installation overhead:
 
 - **Base**: Core functionality (scanpy, scib-metrics, wandb)
-- **`[cpu]`**: CPU-based methods (Harmony, LIGER, Scanorama)
-- **`[gpu]`**: GPU-based methods (scVI, scANVI, scPoli)
-- **`[all]`**: All integration methods
-- **`[dev]`**: Development tools (pytest, black, ruff)
+- **`[cpu]`**: CPU-based methods (e.g. Harmony, LIGER, Scanorama)
+- **`[gpu]`**: GPU-based methods (e.g. scVI, scANVI, scPoli)
+- **`[fast_metrics]`**: Accelerated evaluation with `faiss` and `RAPIDS`
+- **`[all]`**: All optional dependencies
 
-### 3. Test Locally
-
-```bash
-# Run a simple test to verify everything works
-python test_example.py
-```
-
-### 4. Run with slurm_sweep
-
-```bash
-# For GPU-based methods
-slurm_sweep config_gpu.yaml
-
-# For CPU-based methods
-slurm_sweep config_cpu.yaml
-```
 
 ## Outputs
 
@@ -90,24 +76,6 @@ slurm_sweep config_cpu.yaml
 - **scib_total_score**: Overall integration quality
 - **scib_bio_conservation**: Preservation of biological signal
 - **scib_batch_correction**: Removal of batch effects
-
-## Extending the Example
-
-### Adding New Methods
-1. Create method class in `methods/cpu_methods.py` or `methods/gpu_methods.py`
-2. Inherit from `BaseIntegrationMethod`
-3. Implement `fit()` and `transform()` methods
-4. Add to configuration file
-
-### Custom Datasets
-1. Modify `data_loader.py` to load your dataset
-2. Ensure required columns: `batch`, `cell_type`
-3. Update preprocessing as needed
-
-### Additional Metrics
-1. Extend `evaluation.py` with custom metrics
-2. Add to summary metrics dictionary
-3. Log to wandb for tracking
 
 ## References
 
