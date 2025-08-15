@@ -24,13 +24,19 @@ dependencies = [
 
 optional-dependencies.all = [
   # All integration methods
-  "scembed-example[cpu,gpu]",
+  "scembed-example[cpu,gpu,fast-metrics]",
 ]
 optional-dependencies.cpu = [
   # CPU-based integration methods
   "pyliger>=0.2.4",   # Latest stable version (0.2.4)
   "scanorama>=1.7.4",
 ]
+optional-dependencies.fast_metrics = [
+  # Accelerated metric computation
+  "faiss-gpu",         # GPU-accelerated nearest neighbors
+  "rapids-singlecell", # GPU-accelerated single-cell analysis
+]
+
 optional-dependencies.gpu = [
   # GPU-based integration methods
   "harmony-pytorch", # GPU-accelerated Harmony
