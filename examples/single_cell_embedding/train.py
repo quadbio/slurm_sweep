@@ -61,9 +61,12 @@ def main():
     # Initialize wandb
     wandb.init()
 
-    # Extract method and parameters from config - simple and direct
-    method_name = wandb.config.method
-    method_params = getattr(wandb.config, method_name.lower(), {}).get("parameters", {})
+    # Extract method and parameters from config
+    config = wandb.config.config
+    method_name = config["method"]
+
+    # Extract method-specific parameters (everything except 'method')
+    method_params = {k: v for k, v in config.items() if k != "method"}
 
     logger.info("Method: %s", method_name)
     logger.info("Method params: %s", method_params)
