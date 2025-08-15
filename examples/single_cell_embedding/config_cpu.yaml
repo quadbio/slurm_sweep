@@ -1,5 +1,5 @@
 general:
-  project_name: scembed_cpu_comparison
+  project_name: scembed_cpu_comparison_2
   mamba_env: slurm_sweep
   entity: spatial_vi
   modules: stack eth_proxy
@@ -19,22 +19,20 @@ wandb:
     goal: maximize
     name: scib_total_score
   parameters:
-    method:
-      values: ["pca", "liger", "scanorama"]
+    config:
+      values: [
+        # PCA - single run with no additional parameters
+        {"method": "pca"},
 
-    # Method-specific parameters (nested structure)
-    liger:
-      parameters:
-        k:
-          values: [20, 30]
-        lambda_reg:
-          values: [1.0, 5.0]
+        # LIGER - all combinations of k and lambda_reg
+        {"method": "liger", "k": 20, "lambda_reg": 1.0},
+        {"method": "liger", "k": 20, "lambda_reg": 5.0},
+        {"method": "liger", "k": 30, "lambda_reg": 1.0},
+        {"method": "liger", "k": 30, "lambda_reg": 5.0},
 
-    scanorama:
-      parameters:
-        sigma:
-          values: [15.0, 30.0]
-        alpha:
-          values: [0.1, 0.3]
-
-    # Note: PCA uses precomputed embedding from data preprocessing (no parameters)
+        # Scanorama - all combinations of sigma and alpha
+        {"method": "scanorama", "sigma": 15.0, "alpha": 0.1},
+        {"method": "scanorama", "sigma": 15.0, "alpha": 0.3},
+        {"method": "scanorama", "sigma": 30.0, "alpha": 0.1},
+        {"method": "scanorama", "sigma": 30.0, "alpha": 0.3}
+      ]
