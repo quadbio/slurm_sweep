@@ -1,6 +1,6 @@
 general:
   project_name: scembed_cpu_comparison
-  mamba_env: py312
+  mamba_env: scembed
   entity: spatial_vi
   modules: stack eth_proxy
 

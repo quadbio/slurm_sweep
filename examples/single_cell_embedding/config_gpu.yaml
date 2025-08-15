@@ -1,6 +1,6 @@
 general:
   project_name: scembed_gpu_comparison
-  mamba_env: rapids_jax
+  mamba_env: scembed
   entity: spatial_vi
   modules: stack eth_proxy
 
