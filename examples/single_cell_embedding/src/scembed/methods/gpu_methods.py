@@ -28,9 +28,14 @@ def _get_wandb_logger(run_id: str | None = None, project: str = "scvi-training")
         WandbLogger instance if wandb is available and initialized, None otherwise.
     """
     try:
-        from pytorch_lightning.loggers import WandbLogger
+        # Try the new lightning.pytorch import style first
+        try:
+            from lightning.pytorch.loggers import WandbLogger
+        except ImportError:
+            # Fallback to old pytorch_lightning import style
+            from pytorch_lightning.loggers import WandbLogger
     except ImportError:
-        logger.debug("pytorch_lightning not available, skipping wandb logging")
+        logger.debug("pytorch_lightning/lightning not available, skipping wandb logging")
         return None
 
     # Check if wandb is initialized
@@ -82,7 +87,12 @@ def _get_trainer_kwargs_with_logging(accelerator: str = "auto", **extra_kwargs):
         trainer_kwargs["callbacks"] = trainer_kwargs.get("callbacks", [])
 
         try:
-            from pytorch_lightning.callbacks import LearningRateMonitor
+            # Try the new lightning.pytorch import style first
+            try:
+                from lightning.pytorch.callbacks import LearningRateMonitor
+            except ImportError:
+                # Fallback to old pytorch_lightning import style
+                from pytorch_lightning.callbacks import LearningRateMonitor
 
             lr_monitor = LearningRateMonitor(logging_interval="epoch")
             if isinstance(trainer_kwargs["callbacks"], list):
