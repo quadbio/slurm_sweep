@@ -13,6 +13,7 @@ from scembed.methods import (
     scANVIMethod,
     scPoliMethod,
     scVIMethod,
+    scVIVAMethod,
 )
 
 from slurm_sweep._logging import logger
@@ -45,6 +46,7 @@ def get_method_instance(adata, method_name: str, method_params: dict) -> BaseInt
         "scanvi": scANVIMethod,
         "scpoli": scPoliMethod,
         "resolvi": ResolVIMethod,
+        "scviva": scVIVAMethod,
     }
 
     method_class = method_map.get(method_name.lower())
