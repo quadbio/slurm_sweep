@@ -1,5 +1,5 @@
 general:
-  project_name: scembed_gpu_comparison
+  project_name: scembed_test
   mamba_env: scembed
   entity: spatial_vi
   modules: stack eth_proxy
