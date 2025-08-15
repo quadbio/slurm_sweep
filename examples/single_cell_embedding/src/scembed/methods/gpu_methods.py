@@ -4,9 +4,95 @@ import os
 import tempfile
 from pathlib import Path
 
+import wandb
+
 from slurm_sweep._logging import logger
 
 from .base import BaseIntegrationMethod
+
+
+def _get_wandb_logger(run_id: str | None = None, project: str = "scvi-training"):
+    """
+    Create a wandb logger for scVI training if wandb is available and initialized.
+
+    Parameters
+    ----------
+    run_id
+        Existing wandb run ID to use. If None and wandb is initialized, uses current run.
+    project
+        Project name for new wandb runs.
+
+    Returns
+    -------
+    pytorch_lightning.loggers.WandbLogger or None
+        WandbLogger instance if wandb is available and initialized, None otherwise.
+    """
+    try:
+        from pytorch_lightning.loggers import WandbLogger
+    except ImportError:
+        logger.debug("pytorch_lightning not available, skipping wandb logging")
+        return None
+
+    # Check if wandb is initialized
+    if wandb.run is None and run_id is None:
+        logger.debug("No active wandb run and no run_id provided, skipping wandb logging")
+        return None
+
+    try:
+        if run_id is not None:
+            # Use existing run
+            wandb_logger = WandbLogger(id=run_id, resume="allow")
+        elif wandb.run is not None:
+            # Use current active run
+            wandb_logger = WandbLogger(experiment=wandb.run)
+        else:
+            # Create new run (fallback)
+            wandb_logger = WandbLogger(project=project)
+
+        logger.info("Created wandb logger for scVI training")
+        return wandb_logger
+    except (ValueError, RuntimeError, OSError) as e:
+        logger.warning("Failed to create wandb logger: %s", e)
+        return None
+
+
+def _get_trainer_kwargs_with_logging(accelerator: str = "auto", **extra_kwargs):
+    """
+    Get trainer_kwargs with wandb logging if available.
+
+    Parameters
+    ----------
+    accelerator
+        Accelerator type for training.
+    **extra_kwargs
+        Additional trainer kwargs.
+
+    Returns
+    -------
+    dict
+        Trainer kwargs with wandb logger if available.
+    """
+    trainer_kwargs = {"accelerator": accelerator, **extra_kwargs}
+
+    # Add wandb logger if available
+    wandb_logger = _get_wandb_logger()
+    if wandb_logger is not None:
+        trainer_kwargs["logger"] = wandb_logger
+        # Enable learning rate monitoring for better insights
+        trainer_kwargs["callbacks"] = trainer_kwargs.get("callbacks", [])
+
+        try:
+            from pytorch_lightning.callbacks import LearningRateMonitor
+
+            lr_monitor = LearningRateMonitor(logging_interval="epoch")
+            if isinstance(trainer_kwargs["callbacks"], list):
+                trainer_kwargs["callbacks"].append(lr_monitor)
+            else:
+                trainer_kwargs["callbacks"] = [lr_monitor]
+        except ImportError:
+            logger.debug("LearningRateMonitor not available")
+
+    return trainer_kwargs
 
 
 class HarmonyMethod(BaseIntegrationMethod):
@@ -94,7 +180,11 @@ class scVIMethod(BaseIntegrationMethod):
 
         # Create and train model
         self.model = scvi.model.SCVI(adata_hvg, n_latent=self.n_latent, n_layers=self.n_layers, gene_likelihood="nb")
-        self.model.train(max_epochs=self.max_epochs, early_stopping=True, accelerator=self.accelerator)
+
+        # Get trainer kwargs with wandb logging
+        trainer_kwargs = _get_trainer_kwargs_with_logging(accelerator=self.accelerator)
+
+        self.model.train(max_epochs=self.max_epochs, early_stopping=True, trainer_kwargs=trainer_kwargs)
         self.is_fitted = True
 
     def transform(self):
@@ -199,9 +289,10 @@ class scANVIMethod(BaseIntegrationMethod):
             unlabeled_category="Unknown",
         )
 
-        # Step 3: Train scANVI
+        # Step 3: Train scANVI with wandb logging
         logger.info("Training scANVI model")
-        self.model.train(max_epochs=self.max_epochs_scanvi, accelerator=self.accelerator)
+        trainer_kwargs = _get_trainer_kwargs_with_logging(accelerator=self.accelerator)
+        self.model.train(max_epochs=self.max_epochs_scanvi, trainer_kwargs=trainer_kwargs)
         self.is_fitted = True
 
     def transform(self):
@@ -409,8 +500,9 @@ class ResolVIMethod(BaseIntegrationMethod):
             semisupervised=self.semisupervised,
         )
 
-        # Train the model
-        self.model.train(max_epochs=self.max_epochs, accelerator=self.accelerator)
+        # Train the model with wandb logging
+        trainer_kwargs = _get_trainer_kwargs_with_logging(accelerator=self.accelerator)
+        self.model.train(max_epochs=self.max_epochs, trainer_kwargs=trainer_kwargs)
         self.is_fitted = True
 
     def transform(self):
@@ -600,11 +692,12 @@ class scVIVAMethod(BaseIntegrationMethod):
             dropout_rate=self.dropout_rate,
         )
 
-        # Train the model
+        # Train the model with wandb logging
+        trainer_kwargs = _get_trainer_kwargs_with_logging(accelerator=self.accelerator)
         self.model.train(
             max_epochs=self.max_epochs,
             early_stopping=True,
-            accelerator=self.accelerator,
+            trainer_kwargs=trainer_kwargs,
         )
         self.is_fitted = True
 
