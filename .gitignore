@@ -19,6 +19,7 @@ __pycache__/
 wandb/
 slurm_logs/
 .ipynb_checkpoints/
+results/
 
 # data files
 *.h5ad

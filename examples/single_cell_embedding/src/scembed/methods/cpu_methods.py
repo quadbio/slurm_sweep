@@ -19,9 +19,10 @@ class PrecomputedEmbeddingMethod(BaseIntegrationMethod):
         embedding_key
             Key in .obsm containing the precomputed embedding to use.
         """
-        # Extract method name from embedding key for clean naming
-        method_name = embedding_key.replace("X_", "").upper()
-        super().__init__(method_name, adata, embedding_key=embedding_key, **kwargs)
+        super().__init__(adata, embedding_key=embedding_key, **kwargs)
+        # Override the default name and embedding key for precomputed embeddings
+        self.name = embedding_key.replace("X_", "").upper()
+        self.embedding_key = embedding_key
         self.source_embedding_key = embedding_key
 
     def fit(self):
@@ -56,7 +57,7 @@ class LIGERMethod(BaseIntegrationMethod):
         lambda_reg
             Regularization parameter.
         """
-        super().__init__("LIGER", adata, k=k, lambda_reg=lambda_reg, **kwargs)
+        super().__init__(adata, k=k, lambda_reg=lambda_reg, **kwargs)
         self.k = k
         self.lambda_reg = lambda_reg
 
@@ -90,7 +91,7 @@ class LIGERMethod(BaseIntegrationMethod):
         liger_data.var_genes = adata_hvg.var_names
         pyliger.normalize(liger_data)
         pyliger.scale_not_center(liger_data)
-        pyliger.optimize_ALS(liger_data, k=self.k, lambda_reg=self.lambda_reg)
+        pyliger.optimize_ALS(liger_data, k=self.k, value_lambda=self.lambda_reg)
         pyliger.quantile_norm(liger_data)
 
         # Combine results
@@ -118,7 +119,7 @@ class ScanoramaMethod(BaseIntegrationMethod):
         alpha
             Alignment score minimum cutoff.
         """
-        super().__init__("Scanorama", adata, sigma=sigma, alpha=alpha, **kwargs)
+        super().__init__(adata, sigma=sigma, alpha=alpha, **kwargs)
         self.sigma = sigma
         self.alpha = alpha
 

@@ -21,7 +21,7 @@ class HarmonyMethod(BaseIntegrationMethod):
         theta
             Diversity clustering penalty parameter.
         """
-        super().__init__(adata, **kwargs)
+        super().__init__(adata, theta=theta, **kwargs)
         self.theta = theta
 
     def fit(self):
@@ -62,7 +62,7 @@ class scVIMethod(BaseIntegrationMethod):
         n_layers
             Number of hidden layers.
         """
-        super().__init__(adata, **kwargs)
+        super().__init__(adata, n_latent=n_latent, n_layers=n_layers, **kwargs)
         self.n_latent = n_latent
         self.n_layers = n_layers
         self.model = None
@@ -100,7 +100,7 @@ class scVIMethod(BaseIntegrationMethod):
             return None
 
         model_dir = path / "scvi_model"
-        self.model.save(model_dir, overwrite=True)
+        self.model.save(str(model_dir), overwrite=True)
         return model_dir
 
 
@@ -122,7 +122,7 @@ class scANVIMethod(BaseIntegrationMethod):
         max_epochs_scanvi
             Maximum epochs for scANVI training.
         """
-        super().__init__(adata, **kwargs)
+        super().__init__(adata, n_latent=n_latent, n_layers=n_layers, max_epochs_scanvi=max_epochs_scanvi, **kwargs)
         self.n_latent = n_latent
         self.n_layers = n_layers
         self.max_epochs_scanvi = max_epochs_scanvi
@@ -173,7 +173,7 @@ class scANVIMethod(BaseIntegrationMethod):
             return None
 
         model_dir = path / "scanvi_model"
-        self.model.save(model_dir, overwrite=True)
+        self.model.save(str(model_dir), overwrite=True)
         return model_dir
 
 
@@ -195,7 +195,9 @@ class scPoliMethod(BaseIntegrationMethod):
         pretraining_epochs
             Number of pretraining epochs.
         """
-        super().__init__(adata, **kwargs)
+        super().__init__(
+            adata, embedding_dims=embedding_dims, n_epochs=n_epochs, pretraining_epochs=pretraining_epochs, **kwargs
+        )
         self.embedding_dims = embedding_dims
         self.n_epochs = n_epochs
         self.pretraining_epochs = pretraining_epochs
