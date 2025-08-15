@@ -15,7 +15,9 @@ from slurm_sweep._logging import logger
 class BaseIntegrationMethod(ABC):
     """Abstract base class for single-cell integration methods."""
 
-    def __init__(self, adata: ad.AnnData, output_dir: str | Path | None = None, **kwargs):
+    def __init__(
+        self, adata: ad.AnnData, output_dir: str | Path | None = None, validate_spatial: bool = False, **kwargs
+    ):
         """
         Initialize the integration method.
 
@@ -25,6 +27,8 @@ class BaseIntegrationMethod(ABC):
             Annotated data object to validate and store.
         output_dir
             Directory for saving outputs. If None, creates a temporary directory.
+        validate_spatial
+            Whether to validate spatial data requirements.
         **kwargs
             Method-specific parameters.
         """
@@ -41,6 +45,8 @@ class BaseIntegrationMethod(ABC):
 
         # Validate and store the data
         self.validate_adata(adata)
+        if validate_spatial:
+            self.validate_spatial_adata(adata)
         self.adata = adata
 
         # Setup output directories
@@ -94,6 +100,47 @@ class BaseIntegrationMethod(ABC):
             logger.warning("HVG key '%s' not found in adata.var", self.hvg_key)
 
         logger.info("Data validation passed for %s method.", self.name)
+
+    def validate_spatial_adata(self, adata: ad.AnnData) -> None:
+        """
+        Validate spatial-specific data requirements.
+
+        Parameters
+        ----------
+        adata
+            Annotated data object to validate.
+
+        Raises
+        ------
+        ValueError
+            If required spatial keys are missing or data is malformed.
+        """
+        # Check for spatial coordinates - prefer X_spatial, but accept spatial with warning
+        if "X_spatial" not in adata.obsm:
+            if "spatial" in adata.obsm:
+                logger.warning("Found 'spatial' in adata.obsm, renaming to 'X_spatial' for consistency")
+                adata.obsm["X_spatial"] = adata.obsm["spatial"].copy()
+                # Optionally remove the old key to avoid confusion
+                # del adata.obsm["spatial"]
+            else:
+                raise ValueError("Spatial coordinates not found. Expected 'X_spatial' or 'spatial' in adata.obsm")
+
+        # Check spatial coordinates format
+        spatial_coords = adata.obsm["X_spatial"]
+        if spatial_coords.shape[1] != 2:
+            raise ValueError("Spatial coordinates must have 2 dimensions (x, y)")
+
+        # Check for precomputed spatial neighbors (ResolVI setup_anndata will compute these if missing)
+        spatial_keys = [
+            key
+            for key in adata.obsm.keys() | adata.obsp.keys()
+            if any(prefix in key.lower() for prefix in ["spatial", "index_neighbor", "distance_neighbor"])
+        ]
+
+        if not spatial_keys:
+            logger.warning("No precomputed spatial neighbors found. ResolVI will compute these during setup.")
+
+        logger.info("Spatial data validation passed for %s method.", self.name)
 
     @abstractmethod
     def fit(self) -> None:

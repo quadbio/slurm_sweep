@@ -302,3 +302,106 @@ class scPoliMethod(BaseIntegrationMethod):
             os.system(f"cp -r {tmp_dir}/* {model_dir}/")
 
         return model_dir
+
+
+class ResolVIMethod(BaseIntegrationMethod):
+    """ResolVI integration method for spatial transcriptomics."""
+
+    def __init__(
+        self,
+        adata,
+        n_latent: int = 10,
+        n_layers: int = 2,
+        n_hidden: int = 32,
+        max_epochs: int = 50,
+        semisupervised: bool = False,
+        accelerator: str = "auto",
+        **kwargs,
+    ):
+        """
+        Initialize ResolVI method.
+
+        Parameters
+        ----------
+        adata
+            Annotated data object to integrate. Must contain spatial coordinates.
+        n_latent
+            Dimensionality of latent space.
+        n_layers
+            Number of hidden layers.
+        n_hidden
+            Number of nodes per hidden layer.
+        max_epochs
+            Maximum epochs for ResolVI training.
+        semisupervised
+            Whether to use semi-supervised mode with cell type labels.
+        accelerator
+            Accelerator type for training. Options: "cpu", "gpu", "tpu", "ipu", "hpu", "mps", "auto".
+        """
+        super().__init__(
+            adata,
+            validate_spatial=True,  # Enable spatial validation
+            n_latent=n_latent,
+            n_layers=n_layers,
+            n_hidden=n_hidden,
+            max_epochs=max_epochs,
+            semisupervised=semisupervised,
+            accelerator=accelerator,
+            **kwargs,
+        )
+
+        # Store ResolVI-specific parameters
+        self.n_latent = n_latent
+        self.n_layers = n_layers
+        self.n_hidden = n_hidden
+        self.max_epochs = max_epochs
+        self.semisupervised = semisupervised
+        self.accelerator = accelerator
+        self.model = None
+
+    def fit(self):
+        """Fit ResolVI model."""
+        try:
+            import scvi
+        except ImportError as exc:
+            raise ImportError("scvi-tools is required for ResolVI") from exc
+
+        # Setup ResolVI data registration
+        # ResolVI setup_anndata will automatically compute spatial neighbors if missing
+        scvi.external.RESOLVI.setup_anndata(
+            self.adata,
+            layer=self.counts_layer,
+            batch_key=self.batch_key,
+            labels_key=self.cell_type_key if self.semisupervised else None,
+        )
+
+        # Create ResolVI model
+        self.model = scvi.external.RESOLVI(
+            self.adata,
+            n_latent=self.n_latent,
+            n_layers=self.n_layers,
+            n_hidden=self.n_hidden,
+            semisupervised=self.semisupervised,
+        )
+
+        # Train the model
+        self.model.train(max_epochs=self.max_epochs, accelerator=self.accelerator)
+        self.is_fitted = True
+
+    def transform(self):
+        """Get ResolVI latent representation."""
+        if not self.is_fitted or self.model is None:
+            raise ValueError("Model must be fitted before transform")
+
+        # Get latent representation
+        latent = self.model.get_latent_representation()
+        self.adata.obsm[self.embedding_key] = latent
+
+    def save_model(self, path: Path) -> Path | None:
+        """Save ResolVI model."""
+        if self.model is None:
+            return None
+
+        model_dir = path / "resolvi_model"
+        self.model.save(str(model_dir), overwrite=True)
+        return model_dir

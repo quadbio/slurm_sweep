@@ -8,6 +8,7 @@ from scembed.methods import (
     HarmonyMethod,
     LIGERMethod,
     PrecomputedEmbeddingMethod,
+    ResolVIMethod,
     ScanoramaMethod,
     scANVIMethod,
     scPoliMethod,
@@ -43,6 +44,7 @@ def get_method_instance(adata, method_name: str, method_params: dict) -> BaseInt
         "scvi": scVIMethod,
         "scanvi": scANVIMethod,
         "scpoli": scPoliMethod,
+        "resolvi": ResolVIMethod,
     }
 
     method_class = method_map.get(method_name.lower())
