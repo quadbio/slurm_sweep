@@ -16,7 +16,15 @@ class BaseIntegrationMethod(ABC):
     """Abstract base class for single-cell integration methods."""
 
     def __init__(
-        self, adata: ad.AnnData, output_dir: str | Path | None = None, validate_spatial: bool = False, **kwargs
+        self,
+        adata: ad.AnnData,
+        output_dir: str | Path | None = None,
+        validate_spatial: bool = False,
+        batch_key: str = "batch",
+        cell_type_key: str = "cell_type",
+        hvg_key: str = "highly_variable",
+        counts_layer: str = "counts",
+        **kwargs,
     ):
         """
         Initialize the integration method.
@@ -29,6 +37,14 @@ class BaseIntegrationMethod(ABC):
             Directory for saving outputs. If None, creates a temporary directory.
         validate_spatial
             Whether to validate spatial data requirements.
+        batch_key
+            Key in adata.obs for batch information.
+        cell_type_key
+            Key in adata.obs for cell type information.
+        hvg_key
+            Key in adata.var for highly variable genes.
+        counts_layer
+            Key in adata.layers for count data.
         **kwargs
             Method-specific parameters.
         """
@@ -37,11 +53,11 @@ class BaseIntegrationMethod(ABC):
         self.is_fitted = False
         self.embedding_key = f"X_{self.name.lower()}"
 
-        # Common data keys - can be overridden if needed
-        self.batch_key = "batch"
-        self.cell_type_key = "cell_type"
-        self.hvg_key = "highly_variable"
-        self.counts_layer = "counts"
+        # Data keys - configurable for different datasets
+        self.batch_key = batch_key
+        self.cell_type_key = cell_type_key
+        self.hvg_key = hvg_key
+        self.counts_layer = counts_layer
 
         # Validate and store the data
         self.validate_adata(adata)
