@@ -78,7 +78,7 @@ def main():
 
     # Simple preprocessing
     sc.pp.highly_variable_genes(adata, n_top_genes=2000, flavor="cell_ranger", batch_key="batch")
-    sc.tl.pca(adata, n_comps=30, use_highly_variable=True)
+    sc.tl.pca(adata, n_comps=30, mask_var="highly_variable")
 
     # Create method instance
     logger.info("Initializing %s method...", method_name)
