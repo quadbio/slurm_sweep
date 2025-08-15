@@ -292,7 +292,7 @@ class scANVIMethod(BaseIntegrationMethod):
         # Step 3: Train scANVI with wandb logging
         logger.info("Training scANVI model")
         trainer_kwargs = _get_trainer_kwargs_with_logging(accelerator=self.accelerator)
-        self.model.train(max_epochs=self.max_epochs_scanvi, trainer_kwargs=trainer_kwargs)
+        self.model.train(max_epochs=self.max_epochs_scanvi, **trainer_kwargs)
         self.is_fitted = True
 
     def transform(self):
@@ -502,7 +502,7 @@ class ResolVIMethod(BaseIntegrationMethod):
 
         # Train the model with wandb logging
         trainer_kwargs = _get_trainer_kwargs_with_logging(accelerator=self.accelerator)
-        self.model.train(max_epochs=self.max_epochs, trainer_kwargs=trainer_kwargs)
+        self.model.train(max_epochs=self.max_epochs, **trainer_kwargs)
         self.is_fitted = True
 
     def transform(self):
@@ -697,7 +697,7 @@ class scVIVAMethod(BaseIntegrationMethod):
         self.model.train(
             max_epochs=self.max_epochs,
             early_stopping=True,
-            trainer_kwargs=trainer_kwargs,
+            **trainer_kwargs,
         )
         self.is_fitted = True
 
