@@ -24,6 +24,7 @@ class BaseIntegrationMethod(ABC):
         cell_type_key: str = "cell_type",
         hvg_key: str = "highly_variable",
         counts_layer: str = "counts",
+        spatial_key: str = "spatial",
         **kwargs,
     ):
         """
@@ -45,6 +46,8 @@ class BaseIntegrationMethod(ABC):
             Key in adata.var for highly variable genes.
         counts_layer
             Key in adata.layers for count data.
+        spatial_key
+            Key in adata.obsm for spatial coordinates.
         **kwargs
             Method-specific parameters.
         """
@@ -58,6 +61,7 @@ class BaseIntegrationMethod(ABC):
         self.cell_type_key = cell_type_key
         self.hvg_key = hvg_key
         self.counts_layer = counts_layer
+        self.spatial_key = spatial_key
 
         # Validate and store the data
         self.validate_adata(adata)
@@ -131,22 +135,16 @@ class BaseIntegrationMethod(ABC):
         ValueError
             If required spatial keys are missing or data is malformed.
         """
-        # Check for spatial coordinates - prefer X_spatial, but accept spatial with warning
-        if "X_spatial" not in adata.obsm:
-            if "spatial" in adata.obsm:
-                logger.warning("Found 'spatial' in adata.obsm, renaming to 'X_spatial' for consistency")
-                adata.obsm["X_spatial"] = adata.obsm["spatial"].copy()
-                # Optionally remove the old key to avoid confusion
-                # del adata.obsm["spatial"]
-            else:
-                raise ValueError("Spatial coordinates not found. Expected 'X_spatial' or 'spatial' in adata.obsm")
+        # Check for spatial coordinates using the configured spatial_key
+        if self.spatial_key not in adata.obsm:
+            raise ValueError(f"Spatial coordinates not found. Expected '{self.spatial_key}' in adata.obsm")
 
         # Check spatial coordinates format
-        spatial_coords = adata.obsm["X_spatial"]
+        spatial_coords = adata.obsm[self.spatial_key]
         if spatial_coords.shape[1] != 2:
             raise ValueError("Spatial coordinates must have 2 dimensions (x, y)")
 
-        # Check for precomputed spatial neighbors (ResolVI setup_anndata will compute these if missing)
+        # Check for precomputed spatial neighbors (methods will compute these if missing)
         spatial_keys = [
             key
             for key in adata.obsm.keys() | adata.obsp.keys()
@@ -154,7 +152,7 @@ class BaseIntegrationMethod(ABC):
         ]
 
         if not spatial_keys:
-            logger.warning("No precomputed spatial neighbors found. ResolVI will compute these during setup.")
+            logger.warning("No precomputed spatial neighbors found. Spatial methods will compute these during setup.")
 
         logger.info("Spatial data validation passed for %s method.", self.name)
 

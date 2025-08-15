@@ -4,6 +4,8 @@ import os
 import tempfile
 from pathlib import Path
 
+from slurm_sweep._logging import logger
+
 from .base import BaseIntegrationMethod
 
 
@@ -373,6 +375,7 @@ class ResolVIMethod(BaseIntegrationMethod):
             layer=self.counts_layer,
             batch_key=self.batch_key,
             labels_key=self.cell_type_key if self.semisupervised else None,
+            prepare_data_kwargs={"spatial_rep": self.spatial_key},
         )
 
         # Create ResolVI model
@@ -404,4 +407,201 @@ class ResolVIMethod(BaseIntegrationMethod):
 
         model_dir = path / "resolvi_model"
         self.model.save(str(model_dir), overwrite=True)
+        return model_dir
+
+
+class scVIVAMethod(BaseIntegrationMethod):
+    """scVIVA integration method for spatial transcriptomics with neighborhood modeling."""
+
+    def __init__(
+        self,
+        adata,
+        embedding_method: str = "scvi",
+        k_nn: int = 20,
+        n_latent: int = 10,
+        n_hidden: int = 128,
+        n_layers: int = 1,
+        dropout_rate: float = 0.1,
+        max_epochs: int = 400,
+        embedding_n_latent: int = 30,
+        embedding_n_layers: int = 2,
+        embedding_max_epochs: int = 100,
+        accelerator: str = "auto",
+        **kwargs,
+    ):
+        """
+        Initialize scVIVA method.
+
+        Parameters
+        ----------
+        adata
+            Annotated data object to integrate. Must contain spatial coordinates and cell type labels.
+        embedding_method
+            Method to compute expression embeddings. Options: "scvi", "scanvi".
+        k_nn
+            Number of nearest neighbors for spatial graph construction.
+        n_latent
+            Dimensionality of scVIVA latent space.
+        n_hidden
+            Number of nodes per hidden layer for scVIVA.
+        n_layers
+            Number of hidden layers for scVIVA.
+        dropout_rate
+            Dropout rate for scVIVA neural networks.
+        max_epochs
+            Maximum epochs for scVIVA training.
+        embedding_n_latent
+            Dimensionality of expression embedding latent space.
+        embedding_n_layers
+            Number of hidden layers for expression embedding method.
+        embedding_max_epochs
+            Maximum epochs for expression embedding training.
+        accelerator
+            Accelerator type for training. Options: "cpu", "gpu", "tpu", "ipu", "hpu", "mps", "auto".
+        """
+        super().__init__(
+            adata,
+            validate_spatial=True,  # Enable spatial validation
+            embedding_method=embedding_method,
+            k_nn=k_nn,
+            n_latent=n_latent,
+            n_hidden=n_hidden,
+            n_layers=n_layers,
+            dropout_rate=dropout_rate,
+            max_epochs=max_epochs,
+            embedding_n_latent=embedding_n_latent,
+            embedding_n_layers=embedding_n_layers,
+            embedding_max_epochs=embedding_max_epochs,
+            accelerator=accelerator,
+            **kwargs,
+        )
+
+        # Store scVIVA-specific parameters
+        self.embedding_method = embedding_method
+        self.k_nn = k_nn
+        self.n_latent = n_latent
+        self.n_hidden = n_hidden
+        self.n_layers = n_layers
+        self.dropout_rate = dropout_rate
+        self.max_epochs = max_epochs
+        self.accelerator = accelerator
+
+        # Store expression embedding parameters
+        self.embedding_n_latent = embedding_n_latent
+        self.embedding_n_layers = embedding_n_layers
+        self.embedding_max_epochs = embedding_max_epochs
+
+        # Initialize models
+        self.embedding_model = None
+        self.model = None
+
+    def fit(self):
+        """Fit scVIVA model with expression embedding computation."""
+        try:
+            import scvi
+        except ImportError as exc:
+            raise ImportError("scvi-tools is required for scVIVA") from exc
+
+        # Step 1: Compute expression embedding using existing methods
+        logger.info("Computing %s expression embedding for scVIVA", self.embedding_method)
+
+        if self.embedding_method == "scvi":
+            self.embedding_model = scVIMethod(
+                self.adata,
+                n_latent=self.embedding_n_latent,
+                n_layers=self.embedding_n_layers,
+                max_epochs=self.embedding_max_epochs,
+                accelerator=self.accelerator,
+                batch_key=self.batch_key,
+                cell_type_key=self.cell_type_key,
+                hvg_key=self.hvg_key,
+                counts_layer=self.counts_layer,
+            )
+            self.embedding_model.fit_transform()
+            expression_embedding_key = "X_scvi"
+
+        elif self.embedding_method == "scanvi":
+            self.embedding_model = scANVIMethod(
+                self.adata,
+                n_latent=self.embedding_n_latent,
+                n_layers=self.embedding_n_layers,
+                max_epochs=self.embedding_max_epochs,
+                accelerator=self.accelerator,
+                batch_key=self.batch_key,
+                cell_type_key=self.cell_type_key,
+                hvg_key=self.hvg_key,
+                counts_layer=self.counts_layer,
+            )
+            self.embedding_model.fit_transform()
+            expression_embedding_key = "X_scanvi"
+        else:
+            raise ValueError(f"Unknown embedding method: {self.embedding_method}")
+
+        # Step 2: Run scVIVA preprocessing to compute spatial neighborhoods
+        logger.info("Running scVIVA preprocessing with k_nn=%d", self.k_nn)
+
+        # Run preprocessing to compute neighborhoods
+        # Using SCVIVA class method for preprocessing
+        scvi.external.SCVIVA.preprocessing_anndata(
+            adata=self.adata,
+            k_nn=self.k_nn,
+            sample_key=self.batch_key,
+            labels_key=self.cell_type_key,
+            cell_coordinates_key=self.spatial_key,
+            expression_embedding_key=expression_embedding_key,
+        )
+
+        # Step 3: Setup scVIVA data registration
+        scvi.external.SCVIVA.setup_anndata(
+            self.adata,
+            layer=self.counts_layer,
+            batch_key=self.batch_key,
+            sample_key=self.batch_key,
+            labels_key=self.cell_type_key,
+            cell_coordinates_key=self.spatial_key,
+            expression_embedding_key=expression_embedding_key,
+        )
+
+        # Step 4: Create and train scVIVA model
+        logger.info("Training scVIVA model")
+        self.model = scvi.external.SCVIVA(
+            self.adata,
+            n_latent=self.n_latent,
+            n_hidden=self.n_hidden,
+            n_layers=self.n_layers,
+            dropout_rate=self.dropout_rate,
+        )
+
+        # Train the model
+        self.model.train(
+            max_epochs=self.max_epochs,
+            early_stopping=True,
+            accelerator=self.accelerator,
+        )
+        self.is_fitted = True
+
+    def transform(self):
+        """Get scVIVA latent representation."""
+        if not self.is_fitted or self.model is None:
+            raise ValueError("Model must be fitted before transform")
+
+        # Get latent representation
+        latent = self.model.get_latent_representation()
+        self.adata.obsm[self.embedding_key] = latent
+
+    def save_model(self, path: Path) -> Path | None:
+        """Save scVIVA model and embedding model."""
+        if self.model is None:
+            return None
+
+        # Save main scVIVA model
+        model_dir = path / "scviva_model"
+        self.model.save(str(model_dir), overwrite=True)
+
+        # Save embedding model if available
+        if self.embedding_model is not None:
+            embedding_dir = self.embedding_model.save_model(path)
+            if embedding_dir:
+                logger.info("Saved embedding model to %s", embedding_dir)
+
         return model_dir
