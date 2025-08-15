@@ -303,8 +303,11 @@ class scPoliMethod(BaseIntegrationMethod):
         if not self.is_fitted or self.model is None:
             raise ValueError("Model must be fitted before transform")
 
+        # Subset to highly variable genes (same as used during training)
+        adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+
         # Get latent representation
-        latent = self.model.get_latent(self.adata, mean=True)
+        latent = self.model.get_latent(adata_hvg, mean=True)
         self.adata.obsm[self.embedding_key] = latent
 
     def save_model(self, path: Path) -> Path | None:
