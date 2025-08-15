@@ -48,7 +48,7 @@ pip install -e .[all,dev]
 
 **Note**: If you encounter C++ compilation errors (e.g., with `louvain` or `annoy`), install those packages via conda first:
 ```bash
-mamba install -y louvain annoy -c conda-forge
+mamba install louvain python-annoy
 ```
 
 ### 2. Dependency Groups
