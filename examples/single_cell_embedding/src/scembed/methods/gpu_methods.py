@@ -184,7 +184,7 @@ class scVIMethod(BaseIntegrationMethod):
         # Get trainer kwargs with wandb logging
         trainer_kwargs = _get_trainer_kwargs_with_logging(accelerator=self.accelerator)
 
-        self.model.train(max_epochs=self.max_epochs, early_stopping=True, trainer_kwargs=trainer_kwargs)
+        self.model.train(max_epochs=self.max_epochs, early_stopping=True, **trainer_kwargs)
         self.is_fitted = True
 
     def transform(self):
