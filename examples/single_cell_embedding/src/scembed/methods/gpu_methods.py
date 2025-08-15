@@ -171,25 +171,36 @@ class scANVIMethod(BaseIntegrationMethod):
         except ImportError as exc:
             raise ImportError("scvi-tools is required for scANVI integration") from exc
 
-        # Subset to highly variable genes
-        adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
-
-        # Setup scVI first
-        scvi.model.SCVI.setup_anndata(adata_hvg, layer=self.counts_layer, batch_key=self.batch_key)
-
-        # Train scVI model first
-        self.scvi_model = scvi.model.SCVI(
-            adata_hvg, n_latent=self.n_latent, n_layers=self.n_layers, gene_likelihood="nb"
+        # Step 1: Train scVI model using existing scVIMethod
+        logger.info("Training scVI model for scANVI pretraining")
+        scvi_method = scVIMethod(
+            self.adata,
+            n_latent=self.n_latent,
+            n_layers=self.n_layers,
+            max_epochs=self.max_epochs,
+            accelerator=self.accelerator,
+            batch_key=self.batch_key,
+            cell_type_key=self.cell_type_key,
+            hvg_key=self.hvg_key,
+            counts_layer=self.counts_layer,
         )
-        self.scvi_model.train(max_epochs=self.max_epochs, early_stopping=True, accelerator=self.accelerator)
+        scvi_method.fit()
 
-        # Create scANVI from scVI
+        # Store the scVI model
+        self.scvi_model = scvi_method.model
+        if self.scvi_model is None:
+            raise ValueError("scVI model training failed")
+
+        # Step 2: Create scANVI from scVI
+        logger.info("Creating scANVI from pretrained scVI model")
         self.model = scvi.model.SCANVI.from_scvi_model(
             self.scvi_model,
-            adata=adata_hvg,
             labels_key=self.cell_type_key,
             unlabeled_category="Unknown",
         )
+
+        # Step 3: Train scANVI
+        logger.info("Training scANVI model")
         self.model.train(max_epochs=self.max_epochs_scanvi, accelerator=self.accelerator)
         self.is_fitted = True
 
@@ -203,12 +214,20 @@ class scANVIMethod(BaseIntegrationMethod):
         self.adata.obsm[self.embedding_key] = latent
 
     def save_model(self, path: Path) -> Path | None:
-        """Save scANVI model."""
+        """Save scANVI model and pretrained scVI model."""
         if self.model is None:
             return None
 
+        # Save main scANVI model
         model_dir = path / "scanvi_model"
         self.model.save(str(model_dir), overwrite=True)
+
+        # Save pretrained scVI model if available
+        if self.scvi_model is not None:
+            scvi_dir = path / "scvi_pretrained_model"
+            self.scvi_model.save(str(scvi_dir), overwrite=True)
+            logger.info("Saved pretrained scVI model to %s", scvi_dir)
+
         return model_dir
 
 
@@ -426,6 +445,7 @@ class scVIVAMethod(BaseIntegrationMethod):
         embedding_n_latent: int = 30,
         embedding_n_layers: int = 2,
         embedding_max_epochs: int = 100,
+        embedding_max_epochs_scanvi: int = 50,
         accelerator: str = "auto",
         **kwargs,
     ):
@@ -456,6 +476,8 @@ class scVIVAMethod(BaseIntegrationMethod):
             Number of hidden layers for expression embedding method.
         embedding_max_epochs
             Maximum epochs for expression embedding training.
+        embedding_max_epochs_scanvi
+            Maximum epochs for scANVI training (only used when embedding_method="scanvi").
         accelerator
             Accelerator type for training. Options: "cpu", "gpu", "tpu", "ipu", "hpu", "mps", "auto".
         """
@@ -472,6 +494,7 @@ class scVIVAMethod(BaseIntegrationMethod):
             embedding_n_latent=embedding_n_latent,
             embedding_n_layers=embedding_n_layers,
             embedding_max_epochs=embedding_max_epochs,
+            embedding_max_epochs_scanvi=embedding_max_epochs_scanvi,
             accelerator=accelerator,
             **kwargs,
         )
@@ -490,6 +513,7 @@ class scVIVAMethod(BaseIntegrationMethod):
         self.embedding_n_latent = embedding_n_latent
         self.embedding_n_layers = embedding_n_layers
         self.embedding_max_epochs = embedding_max_epochs
+        self.embedding_max_epochs_scanvi = embedding_max_epochs_scanvi
 
         # Initialize models
         self.embedding_model = None
@@ -526,6 +550,7 @@ class scVIVAMethod(BaseIntegrationMethod):
                 n_latent=self.embedding_n_latent,
                 n_layers=self.embedding_n_layers,
                 max_epochs=self.embedding_max_epochs,
+                max_epochs_scanvi=self.embedding_max_epochs_scanvi,
                 accelerator=self.accelerator,
                 batch_key=self.batch_key,
                 cell_type_key=self.cell_type_key,
