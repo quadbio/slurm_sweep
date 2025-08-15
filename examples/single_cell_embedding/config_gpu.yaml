@@ -5,8 +5,7 @@ general:
   modules: stack eth_proxy
 
 slurm:
-  ntasks: 1
-  time: "04:00:00"
+  time: "01:00:00"
   mem_per_cpu: "16G"
   job_name: scembed_gpu
   output: slurm_logs/gpu_%A_%a.out
