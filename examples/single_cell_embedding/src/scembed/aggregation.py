@@ -62,11 +62,10 @@ class scIBAggregator:
             run_data = {
                 "run_id": run.id,
                 "name": run.name,
+                **run.config,  # Logged parameters
                 **run.summary._json_dict,
             }
 
-            # Add config as a separate column (keeping the nested structure for now)
-            run_data["config"] = run.config
             data.append(run_data)
 
         # Convert to DataFrame
