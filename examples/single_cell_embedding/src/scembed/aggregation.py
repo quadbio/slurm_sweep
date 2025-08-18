@@ -71,8 +71,8 @@ class scIBAggregator:
             run_data = {
                 "run_id": run.id,
                 "name": run.name,
-                "config": run.config,  # Keep config as nested dict
-                **dict(run.summary),  # Convert summary to dict properly
+                **run.config,
+                **dict(run.summary),
             }
             data.append(run_data)
 
