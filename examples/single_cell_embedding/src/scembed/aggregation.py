@@ -243,16 +243,11 @@ class scIBAggregator:
         """Build mapping from metric names to metric types using scIB dataclasses."""
         metric_to_type = {}
 
-        # Get metric names from BioConservation dataclass
-        for field in fields(BioConservation):
-            # Convert internal name to display name if available
-            display_name = metric_name_cleaner.get(field.name, field.name)
-            metric_to_type[display_name] = "Bio conservation"
-
-        # Get metric names from BatchCorrection dataclass
-        for field in fields(BatchCorrection):
-            display_name = metric_name_cleaner.get(field.name, field.name)
-            metric_to_type[display_name] = "Batch correction"
+        for name, display_name in metric_name_cleaner.items():
+            if any(name.startswith(field.name) for field in fields(BioConservation)):
+                metric_to_type[display_name] = "Bio conservation"
+            if any(name.startswith(field.name) for field in fields(BatchCorrection)):
+                metric_to_type[display_name] = "Batch correction"
 
         return metric_to_type
 
