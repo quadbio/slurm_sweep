@@ -1,0 +1,318 @@
+"""Integration evaluation utilities."""
+
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing import Any, Literal
+
+import anndata as ad
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import scanpy as sc
+from scib_metrics.benchmark import BatchCorrection, Benchmarker, BioConservation
+from scib_metrics.nearest_neighbors import NeighborsResults
+
+from slurm_sweep._logging import logger
+
+
+def faiss_brute_force_nn(X: np.ndarray, k: int):
+    """GPU brute force nearest neighbor search using faiss."""
+    try:
+        import faiss
+    except ImportError as exc:
+        raise ImportError("faiss-gpu is required for GPU-accelerated neighbor search") from exc
+
+    X = np.ascontiguousarray(X, dtype=np.float32)
+    res = faiss.StandardGpuResources()
+    index = faiss.IndexFlatL2(X.shape[1])
+    gpu_index = faiss.index_cpu_to_gpu(res, 0, index)
+    gpu_index.add(X)
+    distances, indices = gpu_index.search(X, k)
+    del index
+    del gpu_index
+    # distances are squared
+    return NeighborsResults(indices=indices, distances=np.sqrt(distances))
+
+
+def subsample_adata(
+    adata: ad.AnnData,
+    n_obs: int,
+    strategy: Literal["naive", "proportional"] = "naive",
+    proportional_key: str = "batch",
+    random_state: int = 42,
+) -> ad.AnnData:
+    """
+    Subsample AnnData object using different strategies.
+
+    Parameters
+    ----------
+    adata
+        AnnData object to subsample.
+    n_obs
+        Target number of observations after subsampling.
+    strategy
+        Subsampling strategy:
+        - "naive": Random sampling
+        - "proportional": Maintain proportions of categories in proportional_key
+    proportional_key
+        Key in .obs for proportional sampling (e.g., "batch", "cell_type").
+    random_state
+        Random seed for reproducibility.
+
+    Returns
+    -------
+    ad.AnnData
+        Subsampled AnnData object (or original if no subsampling needed).
+    """
+    if n_obs >= adata.n_obs:
+        logger.info("Requested subsample size (%d) >= current size (%d), returning original data", n_obs, adata.n_obs)
+        return adata
+
+    np.random.seed(random_state)
+
+    if strategy == "naive":
+        indices = np.random.choice(adata.n_obs, size=n_obs, replace=False)
+    elif strategy == "proportional":
+        # Maintain proportions of categories
+        category_counts = adata.obs[proportional_key].value_counts()
+        category_proportions = category_counts / category_counts.sum()
+
+        indices = []
+        for category, proportion in category_proportions.items():
+            category_mask = adata.obs[proportional_key] == category
+            category_indices = np.where(category_mask)[0]
+            n_category_samples = int(np.round(n_obs * proportion))
+
+            if n_category_samples > 0 and len(category_indices) > 0:
+                n_to_sample = min(n_category_samples, len(category_indices))
+                sampled_indices = np.random.choice(category_indices, size=n_to_sample, replace=False)
+                indices.extend(sampled_indices)
+
+        indices = np.array(indices)
+        # Ensure we don't exceed the requested number
+        if len(indices) > n_obs:
+            indices = np.random.choice(indices, size=n_obs, replace=False)
+    else:
+        raise ValueError(f"Unknown subsampling strategy: {strategy}")
+
+    logger.info("Subsampled from %d to %d cells using %s strategy", adata.n_obs, len(indices), strategy)
+
+    return adata[indices].copy()
+
+
+class IntegrationEvaluator:
+    """Evaluator for single-cell integration methods."""
+
+    def __init__(
+        self,
+        adata: ad.AnnData,
+        embedding_key: str,
+        batch_key: str = "batch",
+        cell_type_key: str = "cell_type",
+        output_dir: str | Path | None = None,
+        baseline_embedding_key: str = "X_pca_unintegrated",
+    ):
+        """
+        Initialize integration evaluator.
+
+        Parameters
+        ----------
+        adata
+            Annotated data object with integration embedding.
+        embedding_key
+            Key in .obsm containing the integration embedding.
+        batch_key
+            Key in .obs for batch information.
+        cell_type_key
+            Key in .obs for cell type labels.
+        output_dir
+            Directory for saving evaluation outputs. If None, creates temporary directory.
+        baseline_embedding_key
+            Key in .obsm containing the unintegrated baseline embedding. If this embedding
+            doesn't exist, it will be computed automatically.
+        """
+        self.adata = adata
+        self.embedding_key = embedding_key
+        self.batch_key = batch_key
+        self.cell_type_key = cell_type_key
+        self.baseline_embedding_key = baseline_embedding_key
+
+        # Setup output directories
+        self._temp_dir = None
+        if output_dir is None:
+            self._temp_dir = TemporaryDirectory()
+            output_dir = Path(self._temp_dir.name)
+        elif isinstance(output_dir, str):
+            output_dir = Path(output_dir)
+
+        self.output_dir = output_dir
+        self.figures_dir = output_dir / "figures"
+        self.results_dir = output_dir / "results"
+
+        self.figures_dir.mkdir(parents=True, exist_ok=True)
+        self.results_dir.mkdir(parents=True, exist_ok=True)
+
+        # Validate required embedding exists
+        if self.embedding_key not in adata.obsm:
+            raise ValueError(f"Integration embedding '{self.embedding_key}' not found in adata.obsm")
+
+        # Ensure unintegrated baseline exists
+        self._ensure_unintegrated_baseline()
+
+        # Storage for results
+        self.scib_metrics: pd.DataFrame | None = None
+
+        logger.info("Initialized evaluator for '%s', saving to '%s", embedding_key, self.output_dir)
+
+    def _ensure_unintegrated_baseline(self) -> None:
+        """Ensure unintegrated PCA baseline exists for scIB evaluation."""
+        if self.baseline_embedding_key not in self.adata.obsm:
+            logger.info("Computing unintegrated PCA baseline as '%s'...", self.baseline_embedding_key)
+            sc.pp.normalize_total(self.adata, target_sum=1e4)
+            sc.pp.log1p(self.adata)
+            sc.tl.pca(self.adata, n_comps=50, key_added=self.baseline_embedding_key)
+
+    def evaluate_scib(
+        self,
+        min_max_scale: bool = False,
+        use_faiss: bool = False,
+        subsample_to: int | None = None,
+        subsample_strategy: Literal["naive", "proportional"] = "naive",
+        subsample_key: str | None = None,
+    ) -> None:
+        """
+        Evaluate integration using scIB metrics.
+
+        Parameters
+        ----------
+        min_max_scale
+            Whether to apply min-max scaling to results.
+        use_faiss
+            Whether to use FAISS GPU-accelerated nearest neighbor search.
+        subsample_to
+            If provided, subsample to this many cells before evaluation.
+        subsample_strategy
+            Strategy for subsampling when subsample_to is provided.
+        subsample_key
+            Key for proportional subsampling. If None, uses batch_key for proportional strategy.
+        """
+        logger.info("Computing scIB metrics...")
+
+        # Apply subsampling if requested - avoid copying if not needed
+        if subsample_to is not None and subsample_to < self.adata.n_obs:
+            if subsample_key is None:
+                subsample_key = self.batch_key
+            adata_work = subsample_adata(
+                self.adata, n_obs=subsample_to, strategy=subsample_strategy, proportional_key=subsample_key
+            )
+        else:
+            adata_work = self.adata
+
+        # Filter cells without cell type annotations
+        before_filter = adata_work.shape[0]
+        cell_mask = adata_work.obs[self.cell_type_key].isna()
+        adata_filtered = adata_work[~cell_mask]
+        after_filter = adata_filtered.shape[0]
+
+        logger.info("Filtered %d cells without %s annotations", before_filter - after_filter, self.cell_type_key)
+        logger.info("Evaluating on %s cells", f"{after_filter:,}")
+
+        # Set up neighbor computer
+        neighbor_computer = None
+        if use_faiss:
+            try:
+                neighbor_computer = faiss_brute_force_nn
+                logger.info("Using FAISS GPU-accelerated neighbor search")
+            except ImportError:
+                logger.info("FAISS not available, falling back to default neighbor search")
+
+        # Set up benchmarker
+        bm = Benchmarker(
+            adata_filtered,
+            batch_key=self.batch_key,
+            label_key=self.cell_type_key,
+            embedding_obsm_keys=[self.embedding_key],
+            pre_integrated_embedding_obsm_key=self.baseline_embedding_key,
+            bio_conservation_metrics=BioConservation(isolated_labels=False),
+            batch_correction_metrics=BatchCorrection(),
+            n_jobs=-1,
+        )
+
+        # Run benchmark
+        if neighbor_computer is not None:
+            bm.prepare(neighbor_computer=neighbor_computer)
+        else:
+            bm.prepare()
+        bm.benchmark()
+
+        # Store evaluation results
+        self.scib_metrics = bm.get_results(min_max_scale=min_max_scale)
+        logger.info("scIB metrics evaluation completed.")
+
+    def compute_and_show_embeddings(self, key_added: str = "X_umap", use_rapids: bool = False) -> None:
+        """
+        Compute and visualize UMAP embedding.
+
+        Parameters
+        ----------
+        key_added
+            Key in .obsm for storing UMAP embedding.
+        use_rapids
+            Whether to use rapids_singlecell for acceleration.
+        """
+        logger.info("Computing UMAP embedding...")
+
+        if use_rapids:
+            try:
+                import rapids_singlecell as rsc
+
+                # Compute UMAP with RAPIDS
+                rsc.pp.neighbors(self.adata, use_rep=self.embedding_key, n_neighbors=15)
+                rsc.tl.umap(self.adata, key_added=key_added)
+            except ImportError:
+                logger.info("RAPIDS not available, falling back to scanpy")
+                use_rapids = False
+
+        if not use_rapids:
+            # Compute UMAP with scanpy
+            sc.pp.neighbors(self.adata, use_rep=self.embedding_key, n_neighbors=15)
+            sc.tl.umap(self.adata, key_added=key_added)
+
+        # Plot embeddings
+        colors = [self.cell_type_key, self.batch_key]
+        with plt.rc_context({"figure.figsize": (8, 6)}):
+            sc.pl.embedding(self.adata, basis=key_added, color=colors, show=False, wspace=0.7)
+            plt.savefig(self.figures_dir / "umap_evaluation.png", bbox_inches="tight")
+            plt.close()
+
+        logger.info("UMAP embeddings plotted and saved to %s", self.figures_dir)
+
+    def get_summary_metrics(self) -> dict[Any, Any]:
+        """
+        Get summary metrics from scIB evaluation.
+
+        Returns
+        -------
+        dict
+            Dictionary with key metrics for logging.
+        """
+        if self.scib_metrics is None:
+            raise ValueError("Run evaluate_scib() first")
+
+        method_results = self.scib_metrics.loc[self.embedding_key]
+        return method_results.to_dict()
+
+    def __repr__(self) -> str:
+        """String representation of the evaluator."""
+        data_info = f"{self.adata.n_obs:,} cells × {self.adata.n_vars:,} genes"
+        embedding_status = "✓" if self.embedding_key in self.adata.obsm else "✗"
+        evaluation_status = "evaluated" if self.scib_metrics is not None else "not evaluated"
+
+        return (
+            f"IntegrationEvaluator("
+            f"embedding='{self.embedding_key}' {embedding_status}, "
+            f"batch_key='{self.batch_key}', "
+            f"cell_type_key='{self.cell_type_key}', "
+            f"{evaluation_status}, "
+            f"{data_info})"
+        )

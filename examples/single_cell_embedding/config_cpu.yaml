@@ -1,0 +1,38 @@
+general:
+  project_name: scembed_test
+  mamba_env: slurm_sweep
+  entity: spatial_vi
+  modules: stack eth_proxy
+
+slurm:
+  time: "01:00:00"
+  mem_per_cpu: "32G"
+  job_name: scembed_cpu
+  output: slurm_logs/cpu_%A_%a.out
+  array: "0-8"
+
+wandb:
+  program: train.py
+  method: grid
+  name: cpu_methods
+  metric:
+    goal: maximize
+    name: scib_total_score
+  parameters:
+    config:
+      values: [
+        # PCA - single run with no additional parameters
+        {"method": "pca"},
+
+        # LIGER - all combinations of k and lambda_reg
+        {"method": "liger", "k": 20, "lambda_reg": 1.0},
+        {"method": "liger", "k": 20, "lambda_reg": 5.0},
+        {"method": "liger", "k": 30, "lambda_reg": 1.0},
+        {"method": "liger", "k": 30, "lambda_reg": 5.0},
+
+        # Scanorama - all combinations of sigma and alpha
+        {"method": "scanorama", "sigma": 15.0, "alpha": 0.1},
+        {"method": "scanorama", "sigma": 15.0, "alpha": 0.3},
+        {"method": "scanorama", "sigma": 30.0, "alpha": 0.1},
+        {"method": "scanorama", "sigma": 30.0, "alpha": 0.3}
+      ]
