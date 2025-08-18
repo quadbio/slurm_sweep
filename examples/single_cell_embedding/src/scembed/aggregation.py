@@ -126,7 +126,18 @@ class scIBAggregator:
 
             # Extract scIB metrics from the 'scib' column
             scib_data = row.get("scib", {})
-            if not isinstance(scib_data, dict) or not scib_data:
+
+            # Handle various types of scib data (dict, SummarySubDict, etc.)
+            if scib_data is None:
+                self.missing_metrics_runs.append(row["run_id"])
+                continue
+
+            # Convert to regular dict if it's a wandb SummarySubDict or similar
+            if hasattr(scib_data, "keys") and hasattr(scib_data, "items"):
+                scib_data = dict(scib_data)
+
+            # Now check if it's empty or not a dict
+            if not isinstance(scib_data, dict) or len(scib_data) == 0:
                 self.missing_metrics_runs.append(row["run_id"])
                 continue
 
