@@ -50,6 +50,15 @@ class scIBAggregator:
         """Fetch runs from WandB and process into internal storage."""
         logger.info("Fetching runs from %s/%s...", self.entity, self.project)
 
+        # Reset state for fresh fetch
+        self.raw_df = None
+        self.method_data = {}
+        self.n_runs_fetched = 0
+        self.n_runs_filtered = 0
+        self.missing_config_runs = []
+        self.missing_metrics_runs = []
+        self.available_scib_metrics = set()
+
         # Initialize WandB API
         api = wandb.Api()
 
@@ -62,10 +71,9 @@ class scIBAggregator:
             run_data = {
                 "run_id": run.id,
                 "name": run.name,
-                **run.config,  # Logged parameters
-                **run.summary._json_dict,
+                "config": run.config,  # Keep config as nested dict
+                **dict(run.summary),  # Convert summary to dict properly
             }
-
             data.append(run_data)
 
         # Convert to DataFrame
@@ -107,6 +115,10 @@ class scIBAggregator:
         # Extract scIB metrics and validate
         scib_metrics_data = []
         config_data = []
+        other_logs_data = []
+
+        # Define aggregate metrics to exclude from individual metrics
+        aggregate_metrics = {"Batch correction", "Bio conservation", "Total"}
 
         for _, row in valid_df.iterrows():
             config = row["config"]
@@ -118,21 +130,31 @@ class scIBAggregator:
                 self.missing_metrics_runs.append(row["run_id"])
                 continue
 
-            # Build config dataframe entry
+            # Separate actual scIB metrics from aggregates
+            actual_scib_metrics = {k: v for k, v in scib_data.items() if k not in aggregate_metrics}
+
+            # Build config dataframe entry (only method params)
             config_entry = {
                 "run_id": row["run_id"],
                 "method": method,
                 **{k: v for k, v in config.items() if k != "method"},  # All config params except method
-                **{k: v for k, v in row.items() if k not in ["config", "scib", "run_id"]},  # Other run metadata
             }
             config_data.append(config_entry)
 
-            # Build scIB metrics entry
-            metrics_entry = {"run_id": row["run_id"], "method": method, **scib_data}
+            # Build other logs entry (everything else from the run)
+            other_logs_entry = {
+                "run_id": row["run_id"],
+                "method": method,
+                **{k: v for k, v in row.items() if k not in ["config", "scib", "run_id"]},  # Other run metadata
+            }
+            other_logs_data.append(other_logs_entry)
+
+            # Build scIB metrics entry (only actual metrics, no aggregates)
+            metrics_entry = {"run_id": row["run_id"], "method": method, **actual_scib_metrics}
             scib_metrics_data.append(metrics_entry)
 
-            # Track available metrics
-            self.available_scib_metrics.update(scib_data.keys())
+            # Track available metrics (only actual metrics)
+            self.available_scib_metrics.update(actual_scib_metrics.keys())
 
         if self.missing_metrics_runs:
             logger.warning(
@@ -151,6 +173,7 @@ class scIBAggregator:
 
         full_config_df = pd.DataFrame(config_data).set_index("run_id")
         full_metrics_df = pd.DataFrame(scib_metrics_data).set_index("run_id")
+        full_other_logs_df = pd.DataFrame(other_logs_data).set_index("run_id")
 
         # Organize by method
         methods = full_config_df["method"].unique()
@@ -160,7 +183,8 @@ class scIBAggregator:
 
             self.method_data[method] = {
                 "configs": full_config_df.loc[method_runs],
-                "metrics": full_metrics_df.loc[method_runs],
+                "scib_metrics": full_metrics_df.loc[method_runs],
+                "other_logs": full_other_logs_df.loc[method_runs],
             }
 
         logger.info("Available scIB metrics: %s", sorted(self.available_scib_metrics))
@@ -182,7 +206,7 @@ class scIBAggregator:
 
         return metric_to_type
 
-    def get_best_runs_summary(self, sort_by: str = "scib_total_score") -> pd.DataFrame:
+    def get_best_runs_summary(self, sort_by: str = "Total") -> pd.DataFrame:
         """
         Get the best run per method based on specified metric.
 
@@ -190,6 +214,7 @@ class scIBAggregator:
         ----------
         sort_by
             Metric to sort by for selecting best run per method.
+            Default is "Total" (overall scIB score).
 
         Returns
         -------
@@ -201,7 +226,7 @@ class scIBAggregator:
 
         best_runs = []
         for method, data in self.method_data.items():
-            metrics_df = data["metrics"]
+            metrics_df = data["scib_metrics"]
             configs_df = data["configs"]
 
             if sort_by not in metrics_df.columns:
@@ -220,6 +245,10 @@ class scIBAggregator:
             }
             best_runs.append(best_run)
 
+        if not best_runs:
+            logger.warning("No valid runs found with metric '%s'", sort_by)
+            return pd.DataFrame()
+
         return pd.DataFrame(best_runs).set_index("method")
 
     def get_method_runs(self, method: str) -> dict[str, pd.DataFrame]:
@@ -234,7 +263,7 @@ class scIBAggregator:
         Returns
         -------
         dict
-            Dictionary with 'configs' and 'metrics' DataFrames.
+            Dictionary with 'configs', 'scib_metrics', and 'other_logs' DataFrames.
         """
         if method not in self.method_data:
             raise ValueError(f"Method '{method}' not found. Available methods: {list(self.method_data.keys())}")
