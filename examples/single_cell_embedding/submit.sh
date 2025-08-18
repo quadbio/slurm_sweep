@@ -10,4 +10,4 @@
 module load stack eth_proxy
 source $HOME/.bashrc
 mamba activate scembed
-wandb agent "spatial_vi/scembed_gpu_comparison/r5ite2ra"
+wandb agent "spatial_vi/scembed_test/wt48api1"
