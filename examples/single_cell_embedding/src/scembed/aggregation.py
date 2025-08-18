@@ -46,6 +46,9 @@ class scIBAggregator:
         # Available metrics in the data
         self.available_scib_metrics: set[str] = set()
 
+        # Mapping of metric display names to their types
+        self.metric_to_type: dict[str, str] = self._build_metric_type_mapping()
+
         logger.info("Initialized scIBAggregator for %s/%s", entity, project)
 
     def fetch_runs(self) -> None:
@@ -266,21 +269,18 @@ class scIBAggregator:
         Benchmarker
             Benchmarker object with results loaded
         """
-        # Get metric type mapping
-        metric_to_type = self._build_metric_type_mapping()
-
         # Transpose so metrics are rows and runs are columns (as expected by scIB)
         scib_plot = scib_df.drop(columns=["method"]).T.copy()
 
         # Add metric type information
-        scib_plot["Metric Type"] = scib_plot.index.map(metric_to_type)
+        scib_plot["Metric Type"] = scib_plot.index.map(self.metric_to_type)
 
         # Filter to only metrics that have type mappings
-        valid_metrics = [metric for metric in scib_plot.index if metric in metric_to_type]
+        valid_metrics = [metric for metric in scib_plot.index if metric in self.metric_to_type]
         scib_plot = scib_plot.loc[valid_metrics]
 
-        # Reorder rows based on the order in metric_to_type
-        ordered_metrics = [metric for metric in metric_to_type.keys() if metric in valid_metrics]
+        # Reorder rows based on the order in self.metric_to_type
+        ordered_metrics = [metric for metric in self.metric_to_type.keys() if metric in valid_metrics]
         scib_plot = scib_plot.loc[ordered_metrics]
 
         # Create minimal dummy AnnData for Benchmarker initialization
