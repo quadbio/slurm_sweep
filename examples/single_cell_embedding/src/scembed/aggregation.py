@@ -49,6 +49,9 @@ class scIBAggregator:
         # Mapping of metric display names to their types
         self.metric_to_type: dict[str, str] = self._build_metric_type_mapping()
 
+        # Aggregated results (best run per method)
+        self.results: dict[str, pd.DataFrame | Benchmarker] | None = None
+
         logger.info("Initialized scIBAggregator for %s/%s", entity, project)
 
     def fetch_runs(self) -> None:
@@ -203,7 +206,7 @@ class scIBAggregator:
 
             # Create Benchmarker object for this method's scIB metrics
             try:
-                benchmarker = self._create_benchmarker_for_method(method, method_metrics_df)
+                benchmarker = self._create_benchmarker_for_method(method_metrics_df)
             except (ValueError, KeyError, ImportError) as e:
                 logger.warning("Failed to create Benchmarker for method %s: %s", method, e)
                 # Fallback to storing as DataFrame if Benchmarker creation fails
@@ -255,14 +258,12 @@ class scIBAggregator:
         return metric_to_type
 
     def _create_benchmarker_for_method(self, scib_df: pd.DataFrame) -> Benchmarker:
-        """Create a Benchmarker object for a specific method's results.
+        """Create a Benchmarker object for scIB metrics results.
 
         Parameters
         ----------
-        method
-            Method name
         scib_df
-            DataFrame with scIB metrics for this method (runs as rows, metrics as columns)
+            DataFrame with scIB metrics (runs as rows, metrics as columns)
 
         Returns
         -------
@@ -308,28 +309,32 @@ class scIBAggregator:
 
         return bm
 
-    def get_best_runs_summary(self, sort_by: str = "Total") -> pd.DataFrame:
+    def aggregate(self, sort_by: str = "Total") -> None:
         """
-        Get the best run per method based on specified metric.
+        Aggregate best run per method into unified results structure.
+
+        Creates self.results with the same structure as individual method results:
+        - configs: DataFrame with best configurations per method
+        - scib_benchmarker: Benchmarker object with all best runs
+        - other_logs: DataFrame with other logs from best runs per method
 
         Parameters
         ----------
         sort_by
             Metric to sort by for selecting best run per method.
             Default is "Total" (overall scIB score).
-
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame with best run per method, indexed by method name.
         """
         if not self.method_data:
             raise ValueError("No data available. Call fetch_runs() first.")
 
-        best_runs = []
+        best_configs = []
+        best_metrics = []
+        best_other_logs = []
+
         for method, data in self.method_data.items():
             benchmarker = data["scib_benchmarker"]
             configs_df = data["configs"]
+            other_logs_df = data["other_logs"]
 
             # Get metrics DataFrame from Benchmarker
             try:
@@ -354,20 +359,50 @@ class scIBAggregator:
             # Find best run
             best_idx = metrics_df[sort_by].idxmax()
 
-            # Combine config and metrics for best run
-            best_run = {
-                "method": method,
-                "run_id": best_idx,
-                **configs_df.loc[best_idx].to_dict(),
-                **metrics_df.loc[best_idx].to_dict(),
-            }
-            best_runs.append(best_run)
+            # Collect best run data
+            best_config = configs_df.loc[best_idx].copy()
+            best_config.name = method  # Use method name as index
+            best_configs.append(best_config)
 
-        if not best_runs:
+            # Extract metrics for best run and rename index to method
+            best_metric = metrics_df.loc[best_idx].copy()
+            best_metric.name = method
+            best_metrics.append(best_metric)
+
+            # Collect other logs for best run
+            best_other = other_logs_df.loc[best_idx].copy()
+            best_other.name = method
+            best_other_logs.append(best_other)
+
+        if not best_configs:
             logger.warning("No valid runs found with metric '%s'", sort_by)
-            return pd.DataFrame()
+            self.results = None
+            return
 
-        return pd.DataFrame(best_runs).set_index("method")
+        # Create aggregated DataFrames
+        configs_df = pd.DataFrame(best_configs)
+        other_logs_df = pd.DataFrame(best_other_logs)
+
+        # Create metrics DataFrame and Benchmarker
+        metrics_df = pd.DataFrame(best_metrics)
+        metrics_df["method"] = metrics_df.index
+
+        # Create Benchmarker object for aggregated results
+        try:
+            benchmarker = self._create_benchmarker_for_method(metrics_df)
+        except (ValueError, KeyError, ImportError) as e:
+            logger.warning("Failed to create aggregated Benchmarker: %s", e)
+            # Fallback to storing as DataFrame
+            benchmarker = metrics_df
+
+        # Store results in the same format as individual methods
+        self.results = {
+            "configs": configs_df,
+            "scib_benchmarker": benchmarker,
+            "other_logs": other_logs_df,
+        }
+
+        logger.info("Aggregated best runs for %d methods using metric '%s'", len(best_configs), sort_by)
 
     def get_method_runs(self, method: str) -> dict[str, pd.DataFrame | Benchmarker]:
         """
@@ -408,6 +443,8 @@ class scIBAggregator:
             status_parts.append(f"{len(self.missing_config_runs)} missing configs")
         if self.missing_metrics_runs:
             status_parts.append(f"{len(self.missing_metrics_runs)} missing metrics")
+        if self.results is not None:
+            status_parts.append("aggregated")
 
         status = f" ({', '.join(status_parts)})" if status_parts else ""
 
