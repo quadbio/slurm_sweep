@@ -254,7 +254,7 @@ class scIBAggregator:
 
         return metric_to_type
 
-    def _create_benchmarker_for_method(self, method: str, scib_df: pd.DataFrame) -> Benchmarker:
+    def _create_benchmarker_for_method(self, scib_df: pd.DataFrame) -> Benchmarker:
         """Create a Benchmarker object for a specific method's results.
 
         Parameters
