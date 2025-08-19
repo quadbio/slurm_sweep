@@ -1,8 +1,12 @@
+import gzip
+import pickle
 from pathlib import Path
 from typing import Literal
 
 import anndata as ad
+import h5py
 import numpy as np
+import pandas as pd
 import wandb
 from scib_metrics.nearest_neighbors import NeighborsResults
 
@@ -181,3 +185,27 @@ def _get_wandb_logger(run_id: str | None = None, project: str = "scvi-training")
     except (ValueError, RuntimeError, OSError) as e:
         logger.warning("Failed to create wandb logger: %s", e)
         return None
+
+    def load_embedding(file_path: Path | str) -> pd.DataFrame:
+        """Load a saved embedding file back into a DataFrame."""
+        file_path = Path(file_path)
+        if not file_path.exists():
+            raise ValueError(f"File does not exist: {file_path}")
+
+        if file_path.suffix == ".parquet":
+            return pd.read_parquet(file_path)
+
+        elif file_path.name.endswith(".pkl.gz"):
+            with gzip.open(file_path, "rb") as f:
+                return pickle.load(f)
+
+        elif file_path.suffix == ".h5":
+            with h5py.File(file_path, "r") as hf:
+                return pd.DataFrame(
+                    data=hf["embedding"][:],
+                    index=[n.decode() for n in hf["cell_names"][:]],
+                    columns=[n.decode() for n in hf["dim_names"][:]],
+                )
+
+        else:
+            raise ValueError(f"Unsupported file format: {file_path.name}. Supported: .parquet, .pkl.gz, .h5")
