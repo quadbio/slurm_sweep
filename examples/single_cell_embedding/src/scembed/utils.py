@@ -127,13 +127,13 @@ def _download_artifact_by_run_id(
     # Find the artifact
     artifacts = [artifact for artifact in run.logged_artifacts() if artifact_name in artifact.name]
     if not artifacts:
-        logger.warning("No artifact with name '%s' found for run %s", artifact_name, run_id)
+        logger.debug("No artifact with name '%s' found for run %s", artifact_name, run_id)
         return None
 
     # Download the artifact
     artifact = artifacts[0]
     artifact_dir = artifact.download(root=download_dir)
-    logger.info("Downloaded %s from run %s to: %s", artifact_name, run_id, artifact_dir)
+    logger.debug("Downloaded %s from run %s to: %s", artifact_name, run_id, artifact_dir)
     return Path(artifact_dir)
 
 
