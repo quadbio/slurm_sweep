@@ -117,7 +117,8 @@ class BaseIntegrationMethod(ABC):
 
         # Check for highly variable genes (most methods will need this)
         if self.hvg_key not in adata.var.columns:
-            logger.warning("HVG key '%s' not found in adata.var", self.hvg_key)
+            logger.warning("HVG key '%s' not found in adata.var. Setting all genes as hvg", self.hvg_key)
+            adata.var[self.hvg_key] = True
 
         logger.info("Data validation passed for %s method.", self.name)
 
