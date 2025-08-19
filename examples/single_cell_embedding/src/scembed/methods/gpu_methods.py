@@ -6,8 +6,8 @@ from pathlib import Path
 
 import wandb
 
+from scembed.check import check_deps
 from slurm_sweep._logging import logger
-from slurm_sweep.check import check_deps
 
 from .base import BaseIntegrationMethod
 

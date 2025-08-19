@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from slurm_sweep.check import check_deps
+from scembed.check import check_deps
 
 from .base import BaseIntegrationMethod
 

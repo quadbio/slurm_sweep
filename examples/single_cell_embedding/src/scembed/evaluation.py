@@ -12,8 +12,8 @@ import scanpy as sc
 from scib_metrics.benchmark import BatchCorrection, Benchmarker, BioConservation
 from scib_metrics.nearest_neighbors import NeighborsResults
 
+from scembed.check import check_deps
 from slurm_sweep._logging import logger
-from slurm_sweep.check import check_deps
 
 
 def faiss_brute_force_nn(X: np.ndarray, k: int):
