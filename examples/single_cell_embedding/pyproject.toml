@@ -15,6 +15,9 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
+  # Data I/O and storage
+  "pyarrow>=21", # Required for parquet support in pandas
+
   # Single-cell analysis
   "scanpy>=1.11.4",
 
