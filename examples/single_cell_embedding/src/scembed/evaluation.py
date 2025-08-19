@@ -6,97 +6,13 @@ from typing import Any, Literal
 
 import anndata as ad
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import scanpy as sc
 from scib_metrics.benchmark import BatchCorrection, Benchmarker, BioConservation
-from scib_metrics.nearest_neighbors import NeighborsResults
 
 from scembed.check import check_deps
+from scembed.utils import faiss_brute_force_nn, subsample_adata
 from slurm_sweep._logging import logger
-
-
-def faiss_brute_force_nn(X: np.ndarray, k: int):
-    """GPU brute force nearest neighbor search using faiss."""
-    check_deps("faiss-gpu")
-    import faiss
-
-    X = np.ascontiguousarray(X, dtype=np.float32)
-    res = faiss.StandardGpuResources()
-    index = faiss.IndexFlatL2(X.shape[1])
-    gpu_index = faiss.index_cpu_to_gpu(res, 0, index)
-    gpu_index.add(X)
-    distances, indices = gpu_index.search(X, k)
-    del index
-    del gpu_index
-    # distances are squared
-    return NeighborsResults(indices=indices, distances=np.sqrt(distances))
-
-
-def subsample_adata(
-    adata: ad.AnnData,
-    n_obs: int,
-    strategy: Literal["naive", "proportional"] = "naive",
-    proportional_key: str = "batch",
-    random_state: int = 42,
-) -> ad.AnnData:
-    """
-    Subsample AnnData object using different strategies.
-
-    Parameters
-    ----------
-    adata
-        AnnData object to subsample.
-    n_obs
-        Target number of observations after subsampling.
-    strategy
-        Subsampling strategy:
-        - "naive": Random sampling
-        - "proportional": Maintain proportions of categories in proportional_key
-    proportional_key
-        Key in .obs for proportional sampling (e.g., "batch", "cell_type").
-    random_state
-        Random seed for reproducibility.
-
-    Returns
-    -------
-    ad.AnnData
-        Subsampled AnnData object (or original if no subsampling needed).
-    """
-    if n_obs >= adata.n_obs:
-        logger.info("Requested subsample size (%d) >= current size (%d), returning original data", n_obs, adata.n_obs)
-        return adata
-
-    np.random.seed(random_state)
-
-    if strategy == "naive":
-        indices = np.random.choice(adata.n_obs, size=n_obs, replace=False)
-    elif strategy == "proportional":
-        # Maintain proportions of categories
-        category_counts = adata.obs[proportional_key].value_counts()
-        category_proportions = category_counts / category_counts.sum()
-
-        indices = []
-        for category, proportion in category_proportions.items():
-            category_mask = adata.obs[proportional_key] == category
-            category_indices = np.where(category_mask)[0]
-            n_category_samples = int(np.round(n_obs * proportion))
-
-            if n_category_samples > 0 and len(category_indices) > 0:
-                n_to_sample = min(n_category_samples, len(category_indices))
-                sampled_indices = np.random.choice(category_indices, size=n_to_sample, replace=False)
-                indices.extend(sampled_indices)
-
-        indices = np.array(indices)
-        # Ensure we don't exceed the requested number
-        if len(indices) > n_obs:
-            indices = np.random.choice(indices, size=n_obs, replace=False)
-    else:
-        raise ValueError(f"Unknown subsampling strategy: {strategy}")
-
-    logger.info("Subsampled from %d to %d cells using %s strategy", adata.n_obs, len(indices), strategy)
-
-    return adata[indices].copy()
 
 
 class IntegrationEvaluator:

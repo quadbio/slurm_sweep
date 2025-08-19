@@ -4,58 +4,11 @@ import os
 import tempfile
 from pathlib import Path
 
-import wandb
-
 from scembed.check import check_deps
+from scembed.utils import _get_wandb_logger
 from slurm_sweep._logging import logger
 
 from .base import BaseIntegrationMethod
-
-
-def _get_wandb_logger(run_id: str | None = None, project: str = "scvi-training"):
-    """
-    Create a wandb logger for scVI training if wandb is available and initialized.
-
-    Parameters
-    ----------
-    run_id
-        Existing wandb run ID to use. If None and wandb is initialized, uses current run.
-    project
-        Project name for new wandb runs.
-
-    Returns
-    -------
-    pytorch_lightning.loggers.WandbLogger or None
-        WandbLogger instance if wandb is available and initialized, None otherwise.
-    """
-    try:
-        check_deps("lightning")
-        from lightning.pytorch.loggers import WandbLogger
-    except RuntimeError:
-        logger.debug("pytorch_lightning/lightning not available, skipping wandb logging")
-        return None
-
-    # Check if wandb is initialized
-    if wandb.run is None and run_id is None:
-        logger.debug("No active wandb run and no run_id provided, skipping wandb logging")
-        return None
-
-    try:
-        if run_id is not None:
-            # Use existing run
-            wandb_logger = WandbLogger(id=run_id, resume="allow")
-        elif wandb.run is not None:
-            # Use current active run
-            wandb_logger = WandbLogger(experiment=wandb.run)
-        else:
-            # Create new run (fallback)
-            wandb_logger = WandbLogger(project=project)
-
-        logger.info("Created wandb logger for scVI training")
-        return wandb_logger
-    except (ValueError, RuntimeError, OSError) as e:
-        logger.warning("Failed to create wandb logger: %s", e)
-        return None
 
 
 class HarmonyMethod(BaseIntegrationMethod):
