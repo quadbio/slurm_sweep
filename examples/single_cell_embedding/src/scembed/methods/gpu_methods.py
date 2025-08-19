@@ -444,7 +444,12 @@ class ResolVIMethod(BaseIntegrationMethod):
         self.model = None
 
     def fit(self):
-        """Fit ResolVI model."""
+        """Fit ResolVI model.
+
+        Note: ResolVI will compute spatial neighbors internally in `_prepare_data`, which is called from `setup_anndata`.
+        To compute neighbors, it will attempt to use rapids_singlecell and fall back to scanpy if necessary. It simply computes
+        `n_neighbors` + 5 (by default, 15) neighbors in the given spatial representation, treating each batch separately.
+        """
         try:
             import scvi
         except ImportError as exc:

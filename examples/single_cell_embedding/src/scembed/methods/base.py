@@ -1,12 +1,16 @@
 """Base class for integration methods."""
 
+import gzip
+import pickle
 from abc import ABC, abstractmethod
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any
+from typing import Any, Literal
 
 import anndata as ad
+import h5py
 import numpy as np
+import pandas as pd
 from scipy.sparse import issparse
 
 from slurm_sweep._logging import logger
@@ -80,10 +84,10 @@ class BaseIntegrationMethod(ABC):
         # Create sub-directories
         self.output_dir = output_dir
         self.models_dir = output_dir / "models"
-        self.logs_dir = output_dir / "logs"
+        self.embedding_dir = output_dir / "embeddings"
 
         self.models_dir.mkdir(parents=True, exist_ok=True)
-        self.logs_dir.mkdir(parents=True, exist_ok=True)
+        self.embedding_dir.mkdir(parents=True, exist_ok=True)
 
         logger.info("Initialized %s method, saving outputs to '%s'.", self.name, self.output_dir)
 
@@ -117,7 +121,7 @@ class BaseIntegrationMethod(ABC):
 
         # Check for highly variable genes (most methods will need this)
         if self.hvg_key not in adata.var.columns:
-            logger.warning("HVG key '%s' not found in adata.var. Setting all genes as hvg", self.hvg_key)
+            logger.warning("HVG key '%s' not found in adata.var. Initializing as all genes HVG.", self.hvg_key)
             adata.var[self.hvg_key] = True
 
         logger.info("Data validation passed for %s method.", self.name)
@@ -200,6 +204,98 @@ class BaseIntegrationMethod(ABC):
         # Default implementation - subclasses can override
         _ = path  # Silence unused parameter warning
         return None
+
+    def save_embedding(
+        self,
+        format_type: Literal["parquet", "pickle", "h5"] = "parquet",
+        filename: str | None = None,
+        compression: bool = True,
+    ) -> Path:
+        """
+        Save embedding to file with preserved cell names as index.
+
+        Parameters
+        ----------
+        format_type
+            Format to save embedding in. Options: 'parquet', 'pickle', or 'h5'.
+        filename
+            Custom filename (without extension). If None, uses method name.
+        compression
+            Whether to use compression (gzip for all formats).
+
+        Returns
+        -------
+        Path
+            Path to the saved embedding file.
+
+        Raises
+        ------
+        ValueError
+            If method is not fitted or embedding key not found in adata.obsm.
+        """
+        if not self.is_fitted:
+            raise ValueError("Method must be fitted before saving embedding")
+        if self.embedding_key not in self.adata.obsm:
+            raise ValueError(f"Embedding key '{self.embedding_key}' not found in adata.obsm")
+
+        filename = filename or f"embedding_{self.name.lower()}"
+
+        # Create DataFrame (shared for parquet/pickle)
+        emb_df = pd.DataFrame(
+            data=self.adata.obsm[self.embedding_key],
+            index=self.adata.obs_names,
+            columns=[f"dim_{i}" for i in range(self.adata.obsm[self.embedding_key].shape[1])],
+        )
+
+        if format_type == "parquet":
+            file_path = self.embedding_dir / f"{filename}.parquet"
+            emb_df.to_parquet(file_path, compression="gzip" if compression else None)
+
+        elif format_type == "pickle":
+            file_path = self.embedding_dir / f"{filename}.pkl.gz"
+            with gzip.open(file_path, "wb") as f:
+                pickle.dump(emb_df, f)
+
+        elif format_type == "h5":
+            file_path = self.embedding_dir / f"{filename}.h5"
+            with h5py.File(file_path, "w") as hf:
+                hf.create_dataset(
+                    "embedding", data=self.adata.obsm[self.embedding_key], compression="gzip" if compression else None
+                )
+                hf.create_dataset("cell_names", data=[n.encode() for n in self.adata.obs_names])
+                hf.create_dataset(
+                    "dim_names", data=[f"dim_{i}".encode() for i in range(self.adata.obsm[self.embedding_key].shape[1])]
+                )
+        else:
+            raise ValueError(f"Unsupported format_type: {format_type}. Choose from 'parquet', 'pickle', 'h5'")
+
+        logger.info("Saved %s embedding to '%s'", self.name, file_path)
+        return file_path
+
+    @staticmethod
+    def load_embedding(file_path: Path | str) -> pd.DataFrame:
+        """Load a saved embedding file back into a DataFrame."""
+        file_path = Path(file_path)
+        if not file_path.exists():
+            raise ValueError(f"File does not exist: {file_path}")
+
+        if file_path.suffix == ".parquet":
+            return pd.read_parquet(file_path)
+
+        elif file_path.name.endswith(".pkl.gz"):
+            with gzip.open(file_path, "rb") as f:
+                return pickle.load(f)
+
+        elif file_path.suffix == ".h5":
+            with h5py.File(file_path, "r") as hf:
+                return pd.DataFrame(
+                    data=hf["embedding"][:],
+                    index=[n.decode() for n in hf["cell_names"][:]],
+                    columns=[n.decode() for n in hf["dim_names"][:]],
+                )
+
+        else:
+            raise ValueError(f"Unsupported file format: {file_path.name}. Supported: .parquet, .pkl.gz, .h5")
 
     def get_model_info(self) -> dict[str, Any]:
         """

@@ -147,10 +147,8 @@ class IntegrationEvaluator:
 
         self.output_dir = output_dir
         self.figures_dir = output_dir / "figures"
-        self.results_dir = output_dir / "results"
 
         self.figures_dir.mkdir(parents=True, exist_ok=True)
-        self.results_dir.mkdir(parents=True, exist_ok=True)
 
         # Validate required embedding exists
         if self.embedding_key not in adata.obsm:
