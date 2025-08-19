@@ -219,6 +219,8 @@ class IntegrationEvaluator:
         neighbor_computer = None
         if use_faiss:
             try:
+                import faiss  # noqa
+
                 neighbor_computer = faiss_brute_force_nn
                 logger.info("Using FAISS GPU-accelerated neighbor search")
             except ImportError:
