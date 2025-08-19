@@ -13,14 +13,13 @@ from scib_metrics.benchmark import BatchCorrection, Benchmarker, BioConservation
 from scib_metrics.nearest_neighbors import NeighborsResults
 
 from slurm_sweep._logging import logger
+from slurm_sweep.check import check_deps
 
 
 def faiss_brute_force_nn(X: np.ndarray, k: int):
     """GPU brute force nearest neighbor search using faiss."""
-    try:
-        import faiss
-    except ImportError as exc:
-        raise ImportError("faiss-gpu is required for GPU-accelerated neighbor search") from exc
+    check_deps("faiss-gpu")
+    import faiss
 
     X = np.ascontiguousarray(X, dtype=np.float32)
     res = faiss.StandardGpuResources()
@@ -219,11 +218,10 @@ class IntegrationEvaluator:
         neighbor_computer = None
         if use_faiss:
             try:
-                import faiss  # noqa
-
+                check_deps("faiss-gpu")
                 neighbor_computer = faiss_brute_force_nn
                 logger.info("Using FAISS GPU-accelerated neighbor search")
-            except ImportError:
+            except RuntimeError:
                 logger.info("FAISS not available, falling back to default neighbor search")
 
         # Set up benchmarker
@@ -264,12 +262,13 @@ class IntegrationEvaluator:
 
         if use_rapids:
             try:
+                check_deps("rapids-singlecell")
                 import rapids_singlecell as rsc
 
                 # Compute UMAP with RAPIDS
                 rsc.pp.neighbors(self.adata, use_rep=self.embedding_key, n_neighbors=15)
                 rsc.tl.umap(self.adata, key_added=key_added)
-            except ImportError:
+            except RuntimeError:
                 logger.info("RAPIDS not available, falling back to scanpy")
                 use_rapids = False
 

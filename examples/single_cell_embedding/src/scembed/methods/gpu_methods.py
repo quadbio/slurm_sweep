@@ -7,6 +7,7 @@ from pathlib import Path
 import wandb
 
 from slurm_sweep._logging import logger
+from slurm_sweep.check import check_deps
 
 from .base import BaseIntegrationMethod
 
@@ -28,8 +29,9 @@ def _get_wandb_logger(run_id: str | None = None, project: str = "scvi-training")
         WandbLogger instance if wandb is available and initialized, None otherwise.
     """
     try:
+        check_deps("lightning")
         from lightning.pytorch.loggers import WandbLogger
-    except ImportError:
+    except RuntimeError:
         logger.debug("pytorch_lightning/lightning not available, skipping wandb logging")
         return None
 
@@ -81,10 +83,8 @@ class HarmonyMethod(BaseIntegrationMethod):
 
     def transform(self):
         """Apply Harmony integration."""
-        try:
-            from harmony import harmonize
-        except ImportError as exc:
-            raise ImportError("harmony-pytorch is required for Harmony integration") from exc
+        check_deps("harmony-pytorch")
+        from harmony import harmonize
 
         # Use precomputed PCA embedding from data preprocessing
         harmony_embedding = harmonize(
@@ -128,10 +128,8 @@ class scVIMethod(BaseIntegrationMethod):
 
     def fit(self):
         """Fit scVI model."""
-        try:
-            import scvi
-        except ImportError as exc:
-            raise ImportError("scvi-tools is required for scVI integration") from exc
+        check_deps("scvi-tools")
+        import scvi
 
         # Subset to highly variable genes
         adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
@@ -222,10 +220,8 @@ class scANVIMethod(BaseIntegrationMethod):
 
     def fit(self):
         """Fit scANVI model."""
-        try:
-            import scvi
-        except ImportError as exc:
-            raise ImportError("scvi-tools is required for scANVI integration") from exc
+        check_deps("scvi-tools")
+        import scvi
 
         # Step 1: Train scVI model using existing scVIMethod
         logger.info("Training scVI model for scANVI pretraining")
@@ -319,10 +315,8 @@ class scPoliMethod(BaseIntegrationMethod):
 
     def fit(self):
         """Fit scPoli model."""
-        try:
-            from scarches.models.scpoli import scPoli
-        except ImportError as exc:
-            raise ImportError("scarches is required for scPoli integration") from exc
+        check_deps("scarches")
+        from scarches.models.scpoli import scPoli
 
         # Subset to highly variable genes
         adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
@@ -450,10 +444,8 @@ class ResolVIMethod(BaseIntegrationMethod):
         To compute neighbors, it will attempt to use rapids_singlecell and fall back to scanpy if necessary. It simply computes
         `n_neighbors` + 5 (by default, 15) neighbors in the given spatial representation, treating each batch separately.
         """
-        try:
-            import scvi
-        except ImportError as exc:
-            raise ImportError("scvi-tools is required for ResolVI") from exc
+        check_deps("scvi-tools")
+        import scvi
 
         # Setup ResolVI data registration
         # ResolVI setup_anndata will automatically compute spatial neighbors if missing
@@ -598,10 +590,8 @@ class scVIVAMethod(BaseIntegrationMethod):
 
     def fit(self):
         """Fit scVIVA model with expression embedding computation."""
-        try:
-            import scvi
-        except ImportError as exc:
-            raise ImportError("scvi-tools is required for scVIVA") from exc
+        check_deps("scvi-tools")
+        import scvi
 
         # Step 1: Compute expression embedding using existing methods
         logger.info("Computing %s expression embedding for scVIVA", self.embedding_method)

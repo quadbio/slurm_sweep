@@ -2,6 +2,8 @@
 
 import numpy as np
 
+from slurm_sweep.check import check_deps
+
 from .base import BaseIntegrationMethod
 
 
@@ -67,10 +69,8 @@ class LIGERMethod(BaseIntegrationMethod):
 
     def transform(self):
         """Apply LIGER integration."""
-        try:
-            import pyliger
-        except ImportError as exc:
-            raise ImportError("pyliger is required for LIGER integration") from exc
+        check_deps("pyliger")
+        import pyliger
 
         # Setup raw counts for LIGER (data already validated)
         self.adata.X = self.adata.layers[self.counts_layer].copy()
@@ -129,10 +129,8 @@ class ScanoramaMethod(BaseIntegrationMethod):
 
     def transform(self):
         """Apply Scanorama integration."""
-        try:
-            import scanorama
-        except ImportError as exc:
-            raise ImportError("scanorama is required for Scanorama integration") from exc
+        check_deps("scanorama")
+        import scanorama
 
         # Use HVG subset (we know it exists from validation)
         adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
