@@ -377,6 +377,7 @@ class scIBAggregator:
 
             # Collect best run data
             best_config = configs_df.loc[best_idx].copy()
+            best_config["run_id"] = best_idx  # Add run_id from the index
             best_config.name = method  # Use method name as index
             best_configs.append(best_config)
 
