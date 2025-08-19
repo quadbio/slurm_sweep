@@ -519,6 +519,7 @@ class scVIVAMethod(BaseIntegrationMethod):
         embedding_max_epochs: int = 100,
         embedding_max_epochs_scanvi: int = 50,
         accelerator: str = "auto",
+        batch_size: int = 512,
         **kwargs,
     ):
         """
@@ -552,6 +553,8 @@ class scVIVAMethod(BaseIntegrationMethod):
             Maximum epochs for scANVI training (only used when embedding_method="scanvi").
         accelerator
             Accelerator type for training. Options: "cpu", "gpu", "tpu", "ipu", "hpu", "mps", "auto".
+        batch_size
+            Batch size for training.
         """
         super().__init__(
             adata,
@@ -568,6 +571,7 @@ class scVIVAMethod(BaseIntegrationMethod):
             embedding_max_epochs=embedding_max_epochs,
             embedding_max_epochs_scanvi=embedding_max_epochs_scanvi,
             accelerator=accelerator,
+            batch_size=batch_size,
             **kwargs,
         )
 
@@ -580,6 +584,7 @@ class scVIVAMethod(BaseIntegrationMethod):
         self.dropout_rate = dropout_rate
         self.max_epochs = max_epochs
         self.accelerator = accelerator
+        self.batch_size = batch_size
 
         # Store expression embedding parameters
         self.embedding_n_latent = embedding_n_latent
@@ -678,6 +683,7 @@ class scVIVAMethod(BaseIntegrationMethod):
             max_epochs=self.max_epochs,
             early_stopping=True,
             accelerator=self.accelerator,
+            batch_size=self.batch_size,
             **trainer_kwargs,
         )
         self.is_fitted = True
