@@ -298,5 +298,10 @@ class BaseIntegrationMethod(ABC):
         """String representation of the method."""
         params_str = ", ".join(f"{k}={v}" for k, v in self.params.items())
         status = "fitted" if self.is_fitted else "not fitted"
-        data_info = f"{self.adata.n_obs} cells × {self.adata.n_vars} genes"
+
+        # Count HVGs
+        n_hvgs = self.adata.var[self.hvg_key].sum()
+        hvg_info = f"{n_hvgs:,} HVGs" if n_hvgs > 0 else "no HVGs"
+
+        data_info = f"{self.adata.n_obs:,} cells × {self.adata.n_vars:,} genes ({hvg_info})"
         return f"{self.__class__.__name__}({params_str}) [{status}, {data_info}]"
