@@ -425,7 +425,6 @@ class scPoliMethod(BaseIntegrationMethod):
             adata=adata_hvg,
             **scpoli_params,
         )
-        logger.info("Set up scPoli model: %s", self.model)
 
         # Prepare training parameters, filtering out None values
         train_params = self._filter_none_params(
@@ -478,12 +477,27 @@ class ResolVIMethod(BaseIntegrationMethod):
     def __init__(
         self,
         adata,
-        n_latent: int = 10,
-        n_layers: int = 2,
-        n_hidden: int = 32,
-        max_epochs: int = 50,
-        semisupervised: bool = False,
-        accelerator: str = "auto",
+        n_hidden: int | None = None,
+        n_hidden_encoder: int | None = None,
+        n_latent: int | None = None,
+        n_layers: int | None = None,
+        dropout_rate: float | None = None,
+        dispersion: str | None = None,
+        gene_likelihood: str | None = None,
+        background_ratio: float | None = None,
+        median_distance: float | None = None,
+        semisupervised: bool | None = None,
+        mixture_k: int | None = None,
+        downsample_counts: bool | None = None,
+        max_epochs: int | None = None,
+        lr: float | None = None,
+        lr_extra: float | None = None,
+        weight_decay: float | None = None,
+        eps: float | None = None,
+        n_steps_kl_warmup: int | None = None,
+        n_epochs_kl_warmup: int | None = None,
+        batch_size: int | None = None,
+        accelerator: str | None = None,
         **kwargs,
     ):
         """
@@ -493,37 +507,97 @@ class ResolVIMethod(BaseIntegrationMethod):
         ----------
         adata
             Annotated data object to integrate. Must contain spatial coordinates.
-        n_latent
-            Dimensionality of latent space.
-        n_layers
-            Number of hidden layers.
         n_hidden
-            Number of nodes per hidden layer.
-        max_epochs
-            Maximum epochs for ResolVI training.
+            Number of nodes per hidden layer. If None, uses ResolVI library default.
+        n_hidden_encoder
+            Number of nodes per hidden layer in encoder. If None, uses ResolVI library default.
+        n_latent
+            Dimensionality of latent space. If None, uses ResolVI library default.
+        n_layers
+            Number of hidden layers. If None, uses ResolVI library default.
+        dropout_rate
+            Dropout rate for neural networks. If None, uses ResolVI library default.
+        dispersion
+            Dispersion parameter ('gene', 'gene-batch'). If None, uses ResolVI library default.
+        gene_likelihood
+            Gene likelihood ('nb', 'poisson'). If None, uses ResolVI library default.
+        background_ratio
+            Background ratio parameter. If None, uses ResolVI library default.
+        median_distance
+            Median distance parameter. If None, uses ResolVI library default.
         semisupervised
-            Whether to use semi-supervised mode with cell type labels.
+            Whether to use semi-supervised mode with cell type labels. If None, uses ResolVI library default.
+        mixture_k
+            Mixture parameter K. If None, uses ResolVI library default.
+        downsample_counts
+            Whether to downsample counts. If None, uses ResolVI library default.
+        max_epochs
+            Maximum epochs for ResolVI training. If None, uses ResolVI library default.
+        lr
+            Learning rate for optimization. If None, uses ResolVI library default.
+        lr_extra
+            Learning rate for extra parameters. If None, uses ResolVI library default.
+        weight_decay
+            Weight decay regularization. If None, uses ResolVI library default.
+        eps
+            Optimizer eps parameter. If None, uses ResolVI library default.
+        n_steps_kl_warmup
+            Number of steps for KL warmup. If None, uses ResolVI library default.
+        n_epochs_kl_warmup
+            Number of epochs for KL warmup. If None, uses ResolVI library default.
+        batch_size
+            Batch size for training. If None, uses ResolVI library default.
         accelerator
-            Accelerator type for training. Options: "cpu", "gpu", "tpu", "ipu", "hpu", "mps", "auto".
+            Accelerator type for training. If None, uses ResolVI library default.
         """
         super().__init__(
             adata,
             validate_spatial=True,  # Enable spatial validation
+            n_hidden=n_hidden,
+            n_hidden_encoder=n_hidden_encoder,
             n_latent=n_latent,
             n_layers=n_layers,
-            n_hidden=n_hidden,
-            max_epochs=max_epochs,
+            dropout_rate=dropout_rate,
+            dispersion=dispersion,
+            gene_likelihood=gene_likelihood,
+            background_ratio=background_ratio,
+            median_distance=median_distance,
             semisupervised=semisupervised,
+            mixture_k=mixture_k,
+            downsample_counts=downsample_counts,
+            max_epochs=max_epochs,
+            lr=lr,
+            lr_extra=lr_extra,
+            weight_decay=weight_decay,
+            eps=eps,
+            n_steps_kl_warmup=n_steps_kl_warmup,
+            n_epochs_kl_warmup=n_epochs_kl_warmup,
+            batch_size=batch_size,
             accelerator=accelerator,
             **kwargs,
         )
 
         # Store ResolVI-specific parameters
+        self.n_hidden = n_hidden
+        self.n_hidden_encoder = n_hidden_encoder
         self.n_latent = n_latent
         self.n_layers = n_layers
-        self.n_hidden = n_hidden
-        self.max_epochs = max_epochs
+        self.dropout_rate = dropout_rate
+        self.dispersion = dispersion
+        self.gene_likelihood = gene_likelihood
+        self.background_ratio = background_ratio
+        self.median_distance = median_distance
         self.semisupervised = semisupervised
+        self.mixture_k = mixture_k
+        self.downsample_counts = downsample_counts
+        self.max_epochs = max_epochs
+        self.lr = lr
+        self.lr_extra = lr_extra
+        self.weight_decay = weight_decay
+        self.eps = eps
+        self.n_steps_kl_warmup = n_steps_kl_warmup
+        self.n_epochs_kl_warmup = n_epochs_kl_warmup
+        self.batch_size = batch_size
         self.accelerator = accelerator
         self.model = None
 
@@ -547,21 +621,52 @@ class ResolVIMethod(BaseIntegrationMethod):
             prepare_data_kwargs={"spatial_rep": self.spatial_key},
         )
 
+        # Prepare ResolVI model parameters, filtering out None values
+        model_params = self._filter_none_params(
+            {
+                "n_hidden": self.n_hidden,
+                "n_hidden_encoder": self.n_hidden_encoder,
+                "n_latent": self.n_latent,
+                "n_layers": self.n_layers,
+                "dropout_rate": self.dropout_rate,
+                "dispersion": self.dispersion,
+                "gene_likelihood": self.gene_likelihood,
+                "background_ratio": self.background_ratio,
+                "median_distance": self.median_distance,
+                "semisupervised": self.semisupervised,
+                "mixture_k": self.mixture_k,
+                "downsample_counts": self.downsample_counts,
+            }
+        )
+
         # Create ResolVI model
         self.model = scvi.external.RESOLVI(
             self.adata,
-            n_latent=self.n_latent,
-            n_layers=self.n_layers,
-            n_hidden=self.n_hidden,
-            semisupervised=self.semisupervised,
+            **model_params,
+        )
+        logger.info("Set up ResolVI model: %s", self.model)
+
+        # Prepare training parameters, filtering out None values
+        train_params = self._filter_none_params(
+            {
+                "max_epochs": self.max_epochs,
+                "lr": self.lr,
+                "lr_extra": self.lr_extra,
+                "weight_decay": self.weight_decay,
+                "eps": self.eps,
+                "n_steps_kl_warmup": self.n_steps_kl_warmup,
+                "n_epochs_kl_warmup": self.n_epochs_kl_warmup,
+                "batch_size": self.batch_size,
+                "accelerator": self.accelerator,
+            }
         )
 
-        # Train the model with wandb logging
+        # Add wandb logger if available
         wandb_logger = _get_wandb_logger()
-        trainer_kwargs = {}
         if wandb_logger is not None:
-            trainer_kwargs["logger"] = wandb_logger
-        self.model.train(max_epochs=self.max_epochs, accelerator=self.accelerator, **trainer_kwargs)
+            train_params["logger"] = wandb_logger
+
+        self.model.train(**train_params)
         self.is_fitted = True
 
     def transform(self):
