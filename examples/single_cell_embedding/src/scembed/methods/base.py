@@ -68,10 +68,10 @@ class BaseIntegrationMethod(ABC):
         self.spatial_key = spatial_key
 
         # Validate and store the data
-        self.validate_adata(adata)
+        adata_work = self.validate_adata(adata.copy())
         if validate_spatial:
-            self.validate_spatial_adata(adata)
-        self.adata = adata
+            self.validate_spatial_adata(adata_work)
+        self.adata = adata_work
 
         # Setup output directories
         self._temp_dir = None  # Store TemporaryDirectory object to prevent premature deletion
@@ -91,7 +91,7 @@ class BaseIntegrationMethod(ABC):
 
         logger.info("Initialized %s method, saving outputs to '%s'.", self.name, self.output_dir)
 
-    def validate_adata(self, adata: ad.AnnData) -> None:
+    def validate_adata(self, adata: ad.AnnData) -> ad.AnnData:
         """
         Validate the AnnData object has required keys and structure.
 
@@ -125,6 +125,8 @@ class BaseIntegrationMethod(ABC):
             adata.var[self.hvg_key] = True
 
         logger.info("Data validation passed for %s method.", self.name)
+
+        return adata
 
     def validate_spatial_adata(self, adata: ad.AnnData) -> None:
         """
