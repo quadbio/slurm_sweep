@@ -14,7 +14,7 @@ from .base import BaseIntegrationMethod
 class HarmonyMethod(BaseIntegrationMethod):
     """Harmony integration method (GPU-accelerated)."""
 
-    def __init__(self, adata, theta: float = 2.0, pca_key: str = "X_pca", **kwargs):
+    def __init__(self, adata, theta: float | None = None, pca_key: str = "X_pca", **kwargs):
         """
         Initialize Harmony method.
 
@@ -23,7 +23,9 @@ class HarmonyMethod(BaseIntegrationMethod):
         adata
             Annotated data object to integrate.
         theta
-            Diversity clustering penalty parameter.
+            Diversity clustering penalty parameter. If None, uses Harmony library default.
+        pca_key
+            Key for PCA embedding in adata.obsm.
         """
         super().__init__(adata, theta=theta, pca_key=pca_key, **kwargs)
         self.theta = theta
@@ -40,9 +42,16 @@ class HarmonyMethod(BaseIntegrationMethod):
         check_deps("harmony-pytorch")
         from harmony import harmonize
 
+        # Prepare harmony parameters, filtering out None values
+        harmony_params = self._filter_none_params(
+            {
+                "theta": self.theta,
+            }
+        )
+
         # Use precomputed PCA embedding from data preprocessing
         harmony_embedding = harmonize(
-            self.adata.obsm[self.pca_key], self.adata.obs, batch_key=self.batch_key, theta=self.theta
+            self.adata.obsm[self.pca_key], self.adata.obs, batch_key=self.batch_key, **harmony_params
         )
 
         # Add embedding to data
@@ -53,7 +62,15 @@ class scVIMethod(BaseIntegrationMethod):
     """scVI integration method."""
 
     def __init__(
-        self, adata, n_latent: int = 30, n_layers: int = 2, max_epochs: int = 100, accelerator: str = "auto", **kwargs
+        self,
+        adata,
+        n_latent: int | None = None,
+        n_layers: int | None = None,
+        n_hidden: int | None = None,
+        gene_likelihood: str | None = None,
+        max_epochs: int | None = None,
+        accelerator: str | None = None,
+        **kwargs,
     ):
         """
         Initialize scVI method.
@@ -63,19 +80,32 @@ class scVIMethod(BaseIntegrationMethod):
         adata
             Annotated data object to integrate.
         n_latent
-            Dimensionality of latent space.
+            Dimensionality of latent space. If None, uses scVI library default.
         n_layers
-            Number of hidden layers.
+            Number of hidden layers. If None, uses scVI library default.
+        n_hidden
+            Number of nodes per hidden layer. If None, uses scVI library default.
+        gene_likelihood
+            Gene likelihood distribution. If None, uses scVI library default.
         max_epochs
-            Maximum epochs for scVI training.
+            Maximum epochs for scVI training. If None, uses scVI library default.
         accelerator
-            Accelerator type for training. Options: "cpu", "gpu", "tpu", "ipu", "hpu", "mps", "auto".
+            Accelerator type for training. If None, uses scVI library default.
         """
         super().__init__(
-            adata, n_latent=n_latent, n_layers=n_layers, max_epochs=max_epochs, accelerator=accelerator, **kwargs
+            adata,
+            n_latent=n_latent,
+            n_layers=n_layers,
+            n_hidden=n_hidden,
+            gene_likelihood=gene_likelihood,
+            max_epochs=max_epochs,
+            accelerator=accelerator,
+            **kwargs,
         )
         self.n_latent = n_latent
         self.n_layers = n_layers
+        self.n_hidden = n_hidden
+        self.gene_likelihood = gene_likelihood
         self.max_epochs = max_epochs
         self.accelerator = accelerator
         self.model = None
@@ -91,18 +121,33 @@ class scVIMethod(BaseIntegrationMethod):
         # Setup scVI with counts layer
         scvi.model.SCVI.setup_anndata(adata_hvg, layer=self.counts_layer, batch_key=self.batch_key)
 
+        # Prepare scVI model parameters, filtering out None values
+        scvi_params = self._filter_none_params(
+            {
+                "n_latent": self.n_latent,
+                "n_layers": self.n_layers,
+                "n_hidden": self.n_hidden,
+                "gene_likelihood": self.gene_likelihood,
+            }
+        )
+
         # Create and train model
-        self.model = scvi.model.SCVI(adata_hvg, n_latent=self.n_latent, n_layers=self.n_layers, gene_likelihood="nb")
+        self.model = scvi.model.SCVI(adata_hvg, **scvi_params)
 
         # Add wandb logging if available
         wandb_logger = _get_wandb_logger()
-        trainer_kwargs = {}
-        if wandb_logger is not None:
-            trainer_kwargs["logger"] = wandb_logger
 
-        self.model.train(
-            max_epochs=self.max_epochs, early_stopping=True, accelerator=self.accelerator, **trainer_kwargs
+        # Prepare training parameters, filtering out None values
+        train_params = self._filter_none_params(
+            {
+                "max_epochs": self.max_epochs,
+                "accelerator": self.accelerator,
+            }
         )
+        if wandb_logger is not None:
+            train_params["logger"] = wandb_logger
+
+        self.model.train(early_stopping=True, **train_params)
         self.is_fitted = True
 
     def transform(self):

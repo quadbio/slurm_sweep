@@ -272,6 +272,10 @@ class BaseIntegrationMethod(ABC):
         logger.info("Saved %s embedding to '%s'", self.name, file_path)
         return file_path
 
+    def _filter_none_params(self, params: dict) -> dict:
+        """Filter out None values to allow library defaults."""
+        return {k: v for k, v in params.items() if v is not None}
+
     def get_model_info(self) -> dict[str, Any]:
         """
         Get information about the fitted model.
