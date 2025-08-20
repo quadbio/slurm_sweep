@@ -133,6 +133,7 @@ class scVIMethod(BaseIntegrationMethod):
 
         # Create and train model
         self.model = scvi.model.SCVI(adata_hvg, **scvi_params)
+        logger.info("Set up scVI model: %s", self.model)
 
         # Add wandb logging if available
         wandb_logger = _get_wandb_logger()
@@ -241,6 +242,7 @@ class scANVIMethod(BaseIntegrationMethod):
             labels_key=self.cell_type_key,
             unlabeled_category=self.unlabeled_category,
         )
+        logger.info("Set up scANVI model: %s", self.model)
 
         # Step 3: Train scANVI with unified parameter handling
         logger.info("Training scANVI model")
@@ -423,6 +425,7 @@ class scPoliMethod(BaseIntegrationMethod):
             adata=adata_hvg,
             **scpoli_params,
         )
+        logger.info("Set up scPoli model: %s", self.model)
 
         # Prepare training parameters, filtering out None values
         train_params = self._filter_none_params(
