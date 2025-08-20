@@ -14,7 +14,7 @@ from .base import BaseIntegrationMethod
 class HarmonyMethod(BaseIntegrationMethod):
     """Harmony integration method (GPU-accelerated)."""
 
-    def __init__(self, adata, theta: float = 2.0, **kwargs):
+    def __init__(self, adata, theta: float = 2.0, pca_key: str = "X_pca", **kwargs):
         """
         Initialize Harmony method.
 
@@ -25,13 +25,14 @@ class HarmonyMethod(BaseIntegrationMethod):
         theta
             Diversity clustering penalty parameter.
         """
-        super().__init__(adata, theta=theta, **kwargs)
+        super().__init__(adata, theta=theta, pca_key=pca_key, **kwargs)
         self.theta = theta
+        self.pca_key = pca_key
 
     def fit(self):
         """Fit Harmony - no explicit fitting needed."""
-        if "X_pca" not in self.adata.obsm:
-            raise ValueError("PCA embedding 'X_pca' not found in adata.obsm. Run PCA first.")
+        if self.pca_key not in self.adata.obsm:
+            raise ValueError(f"PCA embedding '{self.pca_key}' not found in adata.obsm. Run PCA first.")
         self.is_fitted = True
 
     def transform(self):
@@ -41,7 +42,7 @@ class HarmonyMethod(BaseIntegrationMethod):
 
         # Use precomputed PCA embedding from data preprocessing
         harmony_embedding = harmonize(
-            self.adata.obsm["X_pca"], self.adata.obs, batch_key=self.batch_key, theta=self.theta
+            self.adata.obsm[self.pca_key], self.adata.obs, batch_key=self.batch_key, theta=self.theta
         )
 
         # Add embedding to data
