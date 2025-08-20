@@ -30,6 +30,7 @@ class BaseIntegrationMethod(ABC):
         counts_layer: str = "counts",
         spatial_key: str = "spatial",
         pca_key: str = "X_pca",
+        unlabeled_category: str = "unknown",
         **kwargs,
     ):
         """
@@ -55,6 +56,8 @@ class BaseIntegrationMethod(ABC):
             Key in adata.obsm for spatial coordinates.
         pca_key
             Key in adata.obsm for PCA embedding.
+        unlabeled_category
+            Category name for unlabeled cells in label-based methods.
         **kwargs
             Method-specific parameters.
         """
@@ -70,6 +73,7 @@ class BaseIntegrationMethod(ABC):
         self.counts_layer = counts_layer
         self.spatial_key = spatial_key
         self.pca_key = pca_key
+        self.unlabeled_category = unlabeled_category
 
         # Validate and store the data
         adata_work = self.validate_adata(adata.copy())

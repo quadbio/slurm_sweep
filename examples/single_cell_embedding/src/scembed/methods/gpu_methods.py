@@ -186,7 +186,6 @@ class scANVIMethod(BaseIntegrationMethod):
         scvi_params: dict | None = None,
         max_epochs: int | None = None,
         early_stopping: bool | None = None,
-        unlabeled_category: str = "unknown",
         accelerator: str | None = None,
         **kwargs,
     ):
@@ -205,8 +204,6 @@ class scANVIMethod(BaseIntegrationMethod):
             Maximum epochs for scANVI training.
         early_stopping
             Whether to use early stopping during training.
-        unlabeled_category
-            Category name for unlabeled cells.
         accelerator
             Accelerator type for training.
         """
@@ -215,14 +212,12 @@ class scANVIMethod(BaseIntegrationMethod):
             scvi_params=scvi_params,
             max_epochs=max_epochs,
             early_stopping=early_stopping,
-            unlabeled_category=unlabeled_category,
             accelerator=accelerator,
             **kwargs,
         )
         self.scvi_params = scvi_params or {}
         self.max_epochs = max_epochs
         self.early_stopping = early_stopping
-        self.unlabeled_category = unlabeled_category
         self.accelerator = accelerator
         self.scvi_model = None
         self.model = None
@@ -322,7 +317,6 @@ class scPoliMethod(BaseIntegrationMethod):
         pretraining_epochs: int | None = None,
         recon_loss: str | None = None,
         eta: float | None = None,
-        unknown_ct_names: list[str] | None = None,
         **kwargs,
     ):
         """
@@ -362,8 +356,6 @@ class scPoliMethod(BaseIntegrationMethod):
             Reconstruction loss type.
         eta
             Eta parameter for training.
-        unknown_ct_names
-            List of unknown cell type names.
         """
         super().__init__(
             adata,
@@ -381,7 +373,6 @@ class scPoliMethod(BaseIntegrationMethod):
             pretraining_epochs=pretraining_epochs,
             recon_loss=recon_loss,
             eta=eta,
-            unknown_ct_names=unknown_ct_names,
             **kwargs,
         )
         self.embedding_dims = embedding_dims
@@ -398,7 +389,6 @@ class scPoliMethod(BaseIntegrationMethod):
         self.pretraining_epochs = pretraining_epochs
         self.recon_loss = recon_loss
         self.eta = eta
-        self.unknown_ct_names = unknown_ct_names
         self.model = None
 
     def fit(self):
@@ -440,7 +430,7 @@ class scPoliMethod(BaseIntegrationMethod):
                 "use_ln": self.use_ln,
                 "embedding_max_norm": self.embedding_max_norm,
                 "recon_loss": self.recon_loss,
-                "unknown_ct_names": self.unknown_ct_names,
+                "unknown_ct_names": [self.unlabeled_category],
             }
         )
 
@@ -522,7 +512,6 @@ class ResolVIMethod(BaseIntegrationMethod):
         n_epochs_kl_warmup: int | None = None,
         batch_size: int | None = None,
         accelerator: str | None = None,
-        unlabeled_category: str = "unknown",
         **kwargs,
     ):
         """
@@ -578,8 +567,6 @@ class ResolVIMethod(BaseIntegrationMethod):
             Batch size for training.
         accelerator
             Accelerator type for training.
-        unlabeled_category
-            Unlabeled category name.
         """
         super().__init__(
             adata,
@@ -606,7 +593,6 @@ class ResolVIMethod(BaseIntegrationMethod):
             n_epochs_kl_warmup=n_epochs_kl_warmup,
             batch_size=batch_size,
             accelerator=accelerator,
-            unlabeled_category=unlabeled_category,
             **kwargs,
         )
 
@@ -633,7 +619,6 @@ class ResolVIMethod(BaseIntegrationMethod):
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
         self.batch_size = batch_size
         self.accelerator = accelerator
-        self.unlabeled_category = unlabeled_category
         self.model = None
 
     def fit(self):
