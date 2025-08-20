@@ -14,7 +14,7 @@ from .base import BaseIntegrationMethod
 class HarmonyMethod(BaseIntegrationMethod):
     """Harmony integration method (GPU-accelerated)."""
 
-    def __init__(self, adata, theta: float | None = None, pca_key: str = "X_pca", **kwargs):
+    def __init__(self, adata, theta: float | None = None, **kwargs):
         """
         Initialize Harmony method.
 
@@ -26,12 +26,9 @@ class HarmonyMethod(BaseIntegrationMethod):
             Annotated data object to integrate.
         theta
             Diversity clustering penalty parameter.
-        pca_key
-            Key for PCA embedding in adata.obsm.
         """
-        super().__init__(adata, theta=theta, pca_key=pca_key, **kwargs)
+        super().__init__(adata, theta=theta, **kwargs)
         self.theta = theta
-        self.pca_key = pca_key
 
     def fit(self):
         """Fit Harmony - no explicit fitting needed."""

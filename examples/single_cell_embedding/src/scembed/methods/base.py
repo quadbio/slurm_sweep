@@ -29,6 +29,7 @@ class BaseIntegrationMethod(ABC):
         hvg_key: str = "highly_variable",
         counts_layer: str = "counts",
         spatial_key: str = "spatial",
+        pca_key: str = "X_pca",
         **kwargs,
     ):
         """
@@ -52,6 +53,8 @@ class BaseIntegrationMethod(ABC):
             Key in adata.layers for count data.
         spatial_key
             Key in adata.obsm for spatial coordinates.
+        pca_key
+            Key in adata.obsm for PCA embedding.
         **kwargs
             Method-specific parameters.
         """
@@ -66,6 +69,7 @@ class BaseIntegrationMethod(ABC):
         self.hvg_key = hvg_key
         self.counts_layer = counts_layer
         self.spatial_key = spatial_key
+        self.pca_key = pca_key
 
         # Validate and store the data
         adata_work = self.validate_adata(adata.copy())
@@ -123,6 +127,10 @@ class BaseIntegrationMethod(ABC):
         if self.hvg_key not in adata.var.columns:
             logger.warning("HVG key '%s' not found in adata.var. Initializing as all genes HVG.", self.hvg_key)
             adata.var[self.hvg_key] = True
+
+        # Check for PCA embedding (some methods will need this)
+        if self.pca_key not in adata.obsm:
+            logger.warning("PCA embedding '%s' not found in adata.obsm. Some methods may require this.", self.pca_key)
 
         logger.info("Data validation passed for %s method.", self.name)
 
