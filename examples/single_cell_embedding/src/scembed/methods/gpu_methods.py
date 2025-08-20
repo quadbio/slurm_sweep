@@ -175,11 +175,10 @@ class scANVIMethod(BaseIntegrationMethod):
     def __init__(
         self,
         adata,
-        n_latent: int = 30,
-        n_layers: int = 2,
-        max_epochs: int = 100,
-        max_epochs_scanvi: int = 50,
-        accelerator: str = "auto",
+        scvi_params: dict | None = None,
+        max_epochs: int | None = None,
+        unlabeled_category: str = "Unknown",
+        accelerator: str | None = None,
         **kwargs,
     ):
         """
@@ -189,30 +188,26 @@ class scANVIMethod(BaseIntegrationMethod):
         ----------
         adata
             Annotated data object to integrate.
-        n_latent
-            Dimensionality of latent space.
-        n_layers
-            Number of hidden layers.
+        scvi_params
+            Parameters for scVI model (n_latent, n_layers, etc.). If None, uses scVI defaults.
         max_epochs
-            Maximum epochs for scVI pretraining.
-        max_epochs_scanvi
-            Maximum epochs for scANVI training.
+            Maximum epochs for scANVI training. If None, uses scANVI library default.
+        unlabeled_category
+            Category name for unlabeled cells.
         accelerator
-            Accelerator type for training. Options: "cpu", "gpu", "tpu", "ipu", "hpu", "mps", "auto".
+            Accelerator type for training. If None, uses scANVI library default.
         """
         super().__init__(
             adata,
-            n_latent=n_latent,
-            n_layers=n_layers,
+            scvi_params=scvi_params,
             max_epochs=max_epochs,
-            max_epochs_scanvi=max_epochs_scanvi,
+            unlabeled_category=unlabeled_category,
             accelerator=accelerator,
             **kwargs,
         )
-        self.n_latent = n_latent
-        self.n_layers = n_layers
+        self.scvi_params = scvi_params or {}
         self.max_epochs = max_epochs
-        self.max_epochs_scanvi = max_epochs_scanvi
+        self.unlabeled_category = unlabeled_category
         self.accelerator = accelerator
         self.scvi_model = None
         self.model = None
@@ -226,14 +221,11 @@ class scANVIMethod(BaseIntegrationMethod):
         logger.info("Training scVI model for scANVI pretraining")
         scvi_method = scVIMethod(
             self.adata,
-            n_latent=self.n_latent,
-            n_layers=self.n_layers,
-            max_epochs=self.max_epochs,
-            accelerator=self.accelerator,
             batch_key=self.batch_key,
             cell_type_key=self.cell_type_key,
             hvg_key=self.hvg_key,
             counts_layer=self.counts_layer,
+            **self.scvi_params,
         )
         scvi_method.fit()
 
@@ -247,16 +239,23 @@ class scANVIMethod(BaseIntegrationMethod):
         self.model = scvi.model.SCANVI.from_scvi_model(
             self.scvi_model,
             labels_key=self.cell_type_key,
-            unlabeled_category="Unknown",
+            unlabeled_category=self.unlabeled_category,
         )
 
-        # Step 3: Train scANVI with wandb logging
+        # Step 3: Train scANVI with unified parameter handling
         logger.info("Training scANVI model")
         wandb_logger = _get_wandb_logger()
-        trainer_kwargs = {}
+
+        train_params = self._filter_none_params(
+            {
+                "max_epochs": self.max_epochs,
+                "accelerator": self.accelerator,
+            }
+        )
         if wandb_logger is not None:
-            trainer_kwargs["logger"] = wandb_logger
-        self.model.train(max_epochs=self.max_epochs_scanvi, accelerator=self.accelerator, **trainer_kwargs)
+            train_params["logger"] = wandb_logger
+
+        self.model.train(**train_params)
         self.is_fitted = True
 
     def transform(self):
