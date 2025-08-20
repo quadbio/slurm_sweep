@@ -71,6 +71,7 @@ class scVIMethod(BaseIntegrationMethod):
         n_hidden: int | None = None,
         gene_likelihood: str | None = None,
         max_epochs: int | None = None,
+        early_stopping: bool | None = None,
         accelerator: str | None = None,
         **kwargs,
     ):
@@ -93,6 +94,8 @@ class scVIMethod(BaseIntegrationMethod):
             Gene likelihood distribution.
         max_epochs
             Maximum epochs for scVI training.
+        early_stopping
+            Whether to use early stopping during training.
         accelerator
             Accelerator type for training.
         """
@@ -103,6 +106,7 @@ class scVIMethod(BaseIntegrationMethod):
             n_hidden=n_hidden,
             gene_likelihood=gene_likelihood,
             max_epochs=max_epochs,
+            early_stopping=early_stopping,
             accelerator=accelerator,
             **kwargs,
         )
@@ -111,6 +115,7 @@ class scVIMethod(BaseIntegrationMethod):
         self.n_hidden = n_hidden
         self.gene_likelihood = gene_likelihood
         self.max_epochs = max_epochs
+        self.early_stopping = early_stopping
         self.accelerator = accelerator
         self.model = None
 
@@ -146,13 +151,14 @@ class scVIMethod(BaseIntegrationMethod):
         train_params = self._filter_none_params(
             {
                 "max_epochs": self.max_epochs,
+                "early_stopping": self.early_stopping,
                 "accelerator": self.accelerator,
             }
         )
         if wandb_logger is not None:
             train_params["logger"] = wandb_logger
 
-        self.model.train(early_stopping=True, **train_params)
+        self.model.train(**train_params)
         self.is_fitted = True
 
     def transform(self):
@@ -182,6 +188,7 @@ class scANVIMethod(BaseIntegrationMethod):
         adata,
         scvi_params: dict | None = None,
         max_epochs: int | None = None,
+        early_stopping: bool | None = None,
         unlabeled_category: str = "unknown",
         accelerator: str | None = None,
         **kwargs,
@@ -199,6 +206,8 @@ class scANVIMethod(BaseIntegrationMethod):
             Parameters for scVI model (n_latent, n_layers, etc.).
         max_epochs
             Maximum epochs for scANVI training.
+        early_stopping
+            Whether to use early stopping during training.
         unlabeled_category
             Category name for unlabeled cells.
         accelerator
@@ -208,12 +217,14 @@ class scANVIMethod(BaseIntegrationMethod):
             adata,
             scvi_params=scvi_params,
             max_epochs=max_epochs,
+            early_stopping=early_stopping,
             unlabeled_category=unlabeled_category,
             accelerator=accelerator,
             **kwargs,
         )
         self.scvi_params = scvi_params or {}
         self.max_epochs = max_epochs
+        self.early_stopping = early_stopping
         self.unlabeled_category = unlabeled_category
         self.accelerator = accelerator
         self.scvi_model = None
@@ -257,6 +268,7 @@ class scANVIMethod(BaseIntegrationMethod):
         train_params = self._filter_none_params(
             {
                 "max_epochs": self.max_epochs,
+                "early_stopping": self.early_stopping,
                 "accelerator": self.accelerator,
             }
         )
@@ -504,6 +516,7 @@ class ResolVIMethod(BaseIntegrationMethod):
         mixture_k: int | None = None,
         downsample_counts: bool | None = None,
         max_epochs: int | None = None,
+        early_stopping: bool | None = None,
         lr: float | None = None,
         lr_extra: float | None = None,
         weight_decay: float | None = None,
@@ -550,6 +563,8 @@ class ResolVIMethod(BaseIntegrationMethod):
             Whether to downsample counts.
         max_epochs
             Maximum epochs for ResolVI training.
+        early_stopping
+            Whether to use early stopping during training.
         lr
             Learning rate for optimization.
         lr_extra
@@ -585,6 +600,7 @@ class ResolVIMethod(BaseIntegrationMethod):
             mixture_k=mixture_k,
             downsample_counts=downsample_counts,
             max_epochs=max_epochs,
+            early_stopping=early_stopping,
             lr=lr,
             lr_extra=lr_extra,
             weight_decay=weight_decay,
@@ -611,6 +627,7 @@ class ResolVIMethod(BaseIntegrationMethod):
         self.mixture_k = mixture_k
         self.downsample_counts = downsample_counts
         self.max_epochs = max_epochs
+        self.early_stopping = early_stopping
         self.lr = lr
         self.lr_extra = lr_extra
         self.weight_decay = weight_decay
@@ -673,6 +690,7 @@ class ResolVIMethod(BaseIntegrationMethod):
         train_params = self._filter_none_params(
             {
                 "max_epochs": self.max_epochs,
+                "early_stopping": self.early_stopping,
                 "lr": self.lr,
                 "lr_extra": self.lr_extra,
                 "weight_decay": self.weight_decay,
@@ -726,6 +744,8 @@ class scVIVAMethod(BaseIntegrationMethod):
         n_layers: int | None = None,
         dropout_rate: float | None = None,
         max_epochs: int | None = None,
+        early_stopping: bool | None = None,
+        lr: float | None = None,
         accelerator: str | None = None,
         batch_size: int | None = None,
         **kwargs,
@@ -757,6 +777,10 @@ class scVIVAMethod(BaseIntegrationMethod):
             Dropout rate for scVIVA neural networks.
         max_epochs
             Maximum epochs for scVIVA training.
+        early_stopping
+            Whether to use early stopping during training.
+        lr
+            Learning rate for scVIVA training.
         accelerator
             Accelerator type for training.
         batch_size
@@ -774,6 +798,8 @@ class scVIVAMethod(BaseIntegrationMethod):
             n_layers=n_layers,
             dropout_rate=dropout_rate,
             max_epochs=max_epochs,
+            early_stopping=early_stopping,
+            lr=lr,
             accelerator=accelerator,
             batch_size=batch_size,
             **kwargs,
@@ -789,6 +815,8 @@ class scVIVAMethod(BaseIntegrationMethod):
         self.n_layers = n_layers
         self.dropout_rate = dropout_rate
         self.max_epochs = max_epochs
+        self.early_stopping = early_stopping
+        self.lr = lr
         self.accelerator = accelerator
         self.batch_size = batch_size
 
@@ -887,11 +915,15 @@ class scVIVAMethod(BaseIntegrationMethod):
         train_params = self._filter_none_params(
             {
                 "max_epochs": self.max_epochs,
-                "early_stopping": True,  # scVIVA typically uses early stopping
+                "early_stopping": self.early_stopping,
                 "accelerator": self.accelerator,
                 "batch_size": self.batch_size,
             }
         )
+
+        # Handle learning rate via plan_kwargs if specified
+        if self.lr is not None:
+            train_params["plan_kwargs"] = {"lr": self.lr}
 
         # Add wandb logger if available
         wandb_logger = _get_wandb_logger()
