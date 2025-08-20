@@ -18,12 +18,14 @@ class HarmonyMethod(BaseIntegrationMethod):
         """
         Initialize Harmony method.
 
+        For most input parameters, if None is passed, the default value from the Harmony library will be used.
+
         Parameters
         ----------
         adata
             Annotated data object to integrate.
         theta
-            Diversity clustering penalty parameter. If None, uses Harmony library default.
+            Diversity clustering penalty parameter.
         pca_key
             Key for PCA embedding in adata.obsm.
         """
@@ -75,22 +77,24 @@ class scVIMethod(BaseIntegrationMethod):
         """
         Initialize scVI method.
 
+        For most input parameters, if None is passed, the default value from the scVI library will be used.
+
         Parameters
         ----------
         adata
             Annotated data object to integrate.
         n_latent
-            Dimensionality of latent space. If None, uses scVI library default.
+            Dimensionality of latent space.
         n_layers
-            Number of hidden layers. If None, uses scVI library default.
+            Number of hidden layers.
         n_hidden
-            Number of nodes per hidden layer. If None, uses scVI library default.
+            Number of nodes per hidden layer.
         gene_likelihood
-            Gene likelihood distribution. If None, uses scVI library default.
+            Gene likelihood distribution.
         max_epochs
-            Maximum epochs for scVI training. If None, uses scVI library default.
+            Maximum epochs for scVI training.
         accelerator
-            Accelerator type for training. If None, uses scVI library default.
+            Accelerator type for training.
         """
         super().__init__(
             adata,
@@ -178,25 +182,27 @@ class scANVIMethod(BaseIntegrationMethod):
         adata,
         scvi_params: dict | None = None,
         max_epochs: int | None = None,
-        unlabeled_category: str = "Unknown",
+        unlabeled_category: str = "unknown",
         accelerator: str | None = None,
         **kwargs,
     ):
         """
         Initialize scANVI method.
 
+        For most input parameters, if None is passed, the default value from the scANVI library will be used.
+
         Parameters
         ----------
         adata
             Annotated data object to integrate.
         scvi_params
-            Parameters for scVI model (n_latent, n_layers, etc.). If None, uses scVI defaults.
+            Parameters for scVI model (n_latent, n_layers, etc.).
         max_epochs
-            Maximum epochs for scANVI training. If None, uses scANVI library default.
+            Maximum epochs for scANVI training.
         unlabeled_category
             Category name for unlabeled cells.
         accelerator
-            Accelerator type for training. If None, uses scANVI library default.
+            Accelerator type for training.
         """
         super().__init__(
             adata,
@@ -307,43 +313,48 @@ class scPoliMethod(BaseIntegrationMethod):
         pretraining_epochs: int | None = None,
         recon_loss: str | None = None,
         eta: float | None = None,
+        unknown_ct_names: list[str] | None = None,
         **kwargs,
     ):
         """
         Initialize scPoli method.
+
+        For most input parameters, if None is passed, the default value from the scPoli library will be used.
 
         Parameters
         ----------
         adata
             Annotated data object to integrate.
         embedding_dims
-            Dimensionality of condition embeddings. If None, uses scPoli library default.
+            Dimensionality of condition embeddings.
         latent_dim
-            Bottleneck layer (z) size. If None, uses scPoli library default.
+            Bottleneck layer (z) size.
         hidden_layer_sizes
-            List of hidden layer sizes for encoder network. If None, uses scPoli library default.
+            List of hidden layer sizes for encoder network.
         dr_rate
-            Dropout rate applied to all layers. If None, uses scPoli library default.
+            Dropout rate applied to all layers.
         use_mmd
-            Whether to use MMD loss on latent dimension. If None, uses scPoli library default.
+            Whether to use MMD loss on latent dimension.
         mmd_on
-            Layer for MMD loss calculation ('z' or 'y'). If None, uses scPoli library default.
+            Layer for MMD loss calculation ('z' or 'y').
         beta
-            Scaling factor for MMD loss. If None, uses scPoli library default.
+            Scaling factor for MMD loss.
         use_bn
-            Whether to apply batch normalization. If None, uses scPoli library default.
+            Whether to apply batch normalization.
         use_ln
-            Whether to apply layer normalization. If None, uses scPoli library default.
+            Whether to apply layer normalization.
         embedding_max_norm
-            Max norm allowed for conditional embeddings. If None, uses scPoli library default.
+            Max norm allowed for conditional embeddings.
         n_epochs
-            Total number of training epochs. If None, uses scPoli library default.
+            Total number of training epochs.
         pretraining_epochs
-            Number of pretraining epochs. If None, uses scPoli library default.
+            Number of pretraining epochs.
         recon_loss
-            Reconstruction loss type. If None, uses scPoli library default.
+            Reconstruction loss type.
         eta
-            Eta parameter for training. If None, uses scPoli library default.
+            Eta parameter for training.
+        unknown_ct_names
+            List of unknown cell type names.
         """
         super().__init__(
             adata,
@@ -361,6 +372,7 @@ class scPoliMethod(BaseIntegrationMethod):
             pretraining_epochs=pretraining_epochs,
             recon_loss=recon_loss,
             eta=eta,
+            unknown_ct_names=unknown_ct_names,
             **kwargs,
         )
         self.embedding_dims = embedding_dims
@@ -377,6 +389,7 @@ class scPoliMethod(BaseIntegrationMethod):
         self.pretraining_epochs = pretraining_epochs
         self.recon_loss = recon_loss
         self.eta = eta
+        self.unknown_ct_names = unknown_ct_names
         self.model = None
 
     def fit(self):
@@ -418,6 +431,7 @@ class scPoliMethod(BaseIntegrationMethod):
                 "use_ln": self.use_ln,
                 "embedding_max_norm": self.embedding_max_norm,
                 "recon_loss": self.recon_loss,
+                "unknown_ct_names": self.unknown_ct_names,
             }
         )
 
@@ -486,7 +500,7 @@ class ResolVIMethod(BaseIntegrationMethod):
         gene_likelihood: str | None = None,
         background_ratio: float | None = None,
         median_distance: float | None = None,
-        semisupervised: bool | None = None,
+        semisupervised: bool = False,
         mixture_k: int | None = None,
         downsample_counts: bool | None = None,
         max_epochs: int | None = None,
@@ -498,57 +512,62 @@ class ResolVIMethod(BaseIntegrationMethod):
         n_epochs_kl_warmup: int | None = None,
         batch_size: int | None = None,
         accelerator: str | None = None,
+        unlabeled_category: str = "unknown",
         **kwargs,
     ):
         """
         Initialize ResolVI method.
+
+        For most input parameters, if None is passed, the default value from the ResolVI library will be used.
 
         Parameters
         ----------
         adata
             Annotated data object to integrate. Must contain spatial coordinates.
         n_hidden
-            Number of nodes per hidden layer. If None, uses ResolVI library default.
+            Number of nodes per hidden layer.
         n_hidden_encoder
-            Number of nodes per hidden layer in encoder. If None, uses ResolVI library default.
+            Number of nodes per hidden layer in encoder.
         n_latent
-            Dimensionality of latent space. If None, uses ResolVI library default.
+            Dimensionality of latent space.
         n_layers
-            Number of hidden layers. If None, uses ResolVI library default.
+            Number of hidden layers.
         dropout_rate
-            Dropout rate for neural networks. If None, uses ResolVI library default.
+            Dropout rate for neural networks.
         dispersion
-            Dispersion parameter ('gene', 'gene-batch'). If None, uses ResolVI library default.
+            Dispersion parameter ('gene', 'gene-batch').
         gene_likelihood
-            Gene likelihood ('nb', 'poisson'). If None, uses ResolVI library default.
+            Gene likelihood ('nb', 'poisson').
         background_ratio
-            Background ratio parameter. If None, uses ResolVI library default.
+            Background ratio parameter.
         median_distance
-            Median distance parameter. If None, uses ResolVI library default.
+            Median distance parameter.
         semisupervised
-            Whether to use semi-supervised mode with cell type labels. If None, uses ResolVI library default.
+            Whether to use semi-supervised mode with cell type labels.
         mixture_k
-            Mixture parameter K. If None, uses ResolVI library default.
+            Mixture parameter K.
         downsample_counts
-            Whether to downsample counts. If None, uses ResolVI library default.
+            Whether to downsample counts.
         max_epochs
-            Maximum epochs for ResolVI training. If None, uses ResolVI library default.
+            Maximum epochs for ResolVI training.
         lr
-            Learning rate for optimization. If None, uses ResolVI library default.
+            Learning rate for optimization.
         lr_extra
-            Learning rate for extra parameters. If None, uses ResolVI library default.
+            Learning rate for extra parameters.
         weight_decay
-            Weight decay regularization. If None, uses ResolVI library default.
+            Weight decay regularization.
         eps
-            Optimizer eps parameter. If None, uses ResolVI library default.
+            Optimizer eps parameter.
         n_steps_kl_warmup
-            Number of steps for KL warmup. If None, uses ResolVI library default.
+            Number of steps for KL warmup.
         n_epochs_kl_warmup
-            Number of epochs for KL warmup. If None, uses ResolVI library default.
+            Number of epochs for KL warmup.
         batch_size
-            Batch size for training. If None, uses ResolVI library default.
+            Batch size for training.
         accelerator
-            Accelerator type for training. If None, uses ResolVI library default.
+            Accelerator type for training.
+        unlabeled_category
+            Unlabeled category name.
         """
         super().__init__(
             adata,
@@ -574,6 +593,7 @@ class ResolVIMethod(BaseIntegrationMethod):
             n_epochs_kl_warmup=n_epochs_kl_warmup,
             batch_size=batch_size,
             accelerator=accelerator,
+            unlabeled_category=unlabeled_category,
             **kwargs,
         )
 
@@ -599,6 +619,7 @@ class ResolVIMethod(BaseIntegrationMethod):
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
         self.batch_size = batch_size
         self.accelerator = accelerator
+        self.unlabeled_category = unlabeled_category
         self.model = None
 
     def fit(self):
@@ -613,12 +634,14 @@ class ResolVIMethod(BaseIntegrationMethod):
 
         # Setup ResolVI data registration
         # ResolVI setup_anndata will automatically compute spatial neighbors if missing
+
         scvi.external.RESOLVI.setup_anndata(
             self.adata,
             layer=self.counts_layer,
             batch_key=self.batch_key,
             labels_key=self.cell_type_key if self.semisupervised else None,
             prepare_data_kwargs={"spatial_rep": self.spatial_key},
+            unlabeled_category=self.unlabeled_category,
         )
 
         # Prepare ResolVI model parameters, filtering out None values
