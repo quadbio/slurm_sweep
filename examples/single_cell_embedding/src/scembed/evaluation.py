@@ -54,14 +54,15 @@ class IntegrationEvaluator:
         self.cell_type_key = cell_type_key
         self.baseline_embedding_key = baseline_embedding_key
 
+        # Always make a copy to avoid modifying the original
         if ignore_cell_types is None:
-            self.adata = adata
+            self.adata = adata.copy()
         else:
             if isinstance(ignore_cell_types, str):
                 ignore_cell_types = [ignore_cell_types]
 
             mask = adata.obs[self.cell_type_key].isin(ignore_cell_types)
-            self.adata = adata[~mask]
+            self.adata = adata[~mask].copy()
             logger.info("Ignoring cell types: %s, filtered out %d cells", ignore_cell_types, mask.sum())
 
         # Setup output directories
@@ -123,7 +124,7 @@ class IntegrationEvaluator:
         """
         logger.info("Computing scIB metrics...")
 
-        # Apply subsampling if requested - avoid copying if not needed
+        # Apply subsampling if requested
         if subsample_to is not None and subsample_to < self.adata.n_obs:
             if subsample_key is None:
                 subsample_key = self.batch_key
