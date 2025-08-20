@@ -181,7 +181,7 @@ class IntegrationEvaluator:
         key_added: str = "X_umap",
         use_rapids: bool = False,
         additional_colors: str | list[str] | None = None,
-        figsize: tuple[float, float] = (12, 6),
+        figsize: tuple[float, float] | None = None,
         wspace: float = 0.7,
     ) -> None:
         """
@@ -224,6 +224,9 @@ class IntegrationEvaluator:
             additional_colors = [additional_colors]
 
         colors = [self.cell_type_key, self.batch_key] + additional_colors
+        if figsize is None:
+            figsize = (len(colors) * 4, 6)
+
         with plt.rc_context({"figure.figsize": figsize}):
             sc.pl.embedding(self.adata, basis=key_added, color=colors, show=False, wspace=wspace)
             plt.savefig(self.figures_dir / "umap_evaluation.png", bbox_inches="tight")
