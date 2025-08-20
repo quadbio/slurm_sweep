@@ -718,29 +718,33 @@ class scVIVAMethod(BaseIntegrationMethod):
         self,
         adata,
         embedding_method: str = "scvi",
-        k_nn: int = 20,
-        n_latent: int = 10,
-        n_hidden: int = 128,
-        n_layers: int = 1,
-        dropout_rate: float = 0.1,
-        max_epochs: int = 400,
-        embedding_n_latent: int = 30,
-        embedding_n_layers: int = 2,
-        embedding_max_epochs: int = 100,
-        embedding_max_epochs_scanvi: int = 50,
-        accelerator: str = "auto",
-        batch_size: int = 512,
+        scvi_params: dict | None = None,
+        scanvi_params: dict | None = None,
+        k_nn: int | None = None,
+        n_latent: int | None = None,
+        n_hidden: int | None = None,
+        n_layers: int | None = None,
+        dropout_rate: float | None = None,
+        max_epochs: int | None = None,
+        accelerator: str | None = None,
+        batch_size: int | None = None,
         **kwargs,
     ):
         """
         Initialize scVIVA method.
+
+        For most input parameters, if None is passed, the default value from the scVIVA library will be used.
 
         Parameters
         ----------
         adata
             Annotated data object to integrate. Must contain spatial coordinates and cell type labels.
         embedding_method
-            Method to compute expression embeddings. Options: "scvi", "scanvi".
+            Method to compute expression embeddings. Options: "scvi", "scanvi". Default is "scvi".
+        scvi_params
+            Parameters to pass to the scVI embedding method. If None, uses method defaults.
+        scanvi_params
+            Parameters to pass to the scANVI embedding method. If None, uses method defaults.
         k_nn
             Number of nearest neighbors for spatial graph construction.
         n_latent
@@ -753,16 +757,8 @@ class scVIVAMethod(BaseIntegrationMethod):
             Dropout rate for scVIVA neural networks.
         max_epochs
             Maximum epochs for scVIVA training.
-        embedding_n_latent
-            Dimensionality of expression embedding latent space.
-        embedding_n_layers
-            Number of hidden layers for expression embedding method.
-        embedding_max_epochs
-            Maximum epochs for expression embedding training.
-        embedding_max_epochs_scanvi
-            Maximum epochs for scANVI training (only used when embedding_method="scanvi").
         accelerator
-            Accelerator type for training. Options: "cpu", "gpu", "tpu", "ipu", "hpu", "mps", "auto".
+            Accelerator type for training.
         batch_size
             Batch size for training.
         """
@@ -770,16 +766,14 @@ class scVIVAMethod(BaseIntegrationMethod):
             adata,
             validate_spatial=True,  # Enable spatial validation
             embedding_method=embedding_method,
+            scvi_params=scvi_params,
+            scanvi_params=scanvi_params,
             k_nn=k_nn,
             n_latent=n_latent,
             n_hidden=n_hidden,
             n_layers=n_layers,
             dropout_rate=dropout_rate,
             max_epochs=max_epochs,
-            embedding_n_latent=embedding_n_latent,
-            embedding_n_layers=embedding_n_layers,
-            embedding_max_epochs=embedding_max_epochs,
-            embedding_max_epochs_scanvi=embedding_max_epochs_scanvi,
             accelerator=accelerator,
             batch_size=batch_size,
             **kwargs,
@@ -787,6 +781,8 @@ class scVIVAMethod(BaseIntegrationMethod):
 
         # Store scVIVA-specific parameters
         self.embedding_method = embedding_method
+        self.scvi_params = scvi_params or {}
+        self.scanvi_params = scanvi_params or {}
         self.k_nn = k_nn
         self.n_latent = n_latent
         self.n_hidden = n_hidden
@@ -795,12 +791,6 @@ class scVIVAMethod(BaseIntegrationMethod):
         self.max_epochs = max_epochs
         self.accelerator = accelerator
         self.batch_size = batch_size
-
-        # Store expression embedding parameters
-        self.embedding_n_latent = embedding_n_latent
-        self.embedding_n_layers = embedding_n_layers
-        self.embedding_max_epochs = embedding_max_epochs
-        self.embedding_max_epochs_scanvi = embedding_max_epochs_scanvi
 
         # Initialize models
         self.embedding_model = None
@@ -814,52 +804,57 @@ class scVIVAMethod(BaseIntegrationMethod):
         # Step 1: Compute expression embedding using existing methods
         logger.info("Computing %s expression embedding for scVIVA", self.embedding_method)
 
+        # Validate embedding method choice
+        if self.embedding_method not in ["scvi", "scanvi"]:
+            raise ValueError(f"embedding_method must be 'scvi' or 'scanvi', got: {self.embedding_method}")
+
+        # Prepare embedding parameters and create embedding model
         if self.embedding_method == "scvi":
-            self.embedding_model = scVIMethod(
-                self.adata,
-                n_latent=self.embedding_n_latent,
-                n_layers=self.embedding_n_layers,
-                max_epochs=self.embedding_max_epochs,
-                accelerator=self.accelerator,
-                batch_key=self.batch_key,
-                cell_type_key=self.cell_type_key,
-                hvg_key=self.hvg_key,
-                counts_layer=self.counts_layer,
+            embedding_params = self.scvi_params.copy()
+            embedding_params.update(
+                {
+                    "batch_key": self.batch_key,
+                    "cell_type_key": self.cell_type_key,
+                    "hvg_key": self.hvg_key,
+                    "counts_layer": self.counts_layer,
+                }
             )
+            self.embedding_model = scVIMethod(self.adata, **embedding_params)
             self.embedding_model.fit_transform()
             expression_embedding_key = "X_scvi"
 
-        elif self.embedding_method == "scanvi":
-            self.embedding_model = scANVIMethod(
-                self.adata,
-                n_latent=self.embedding_n_latent,
-                n_layers=self.embedding_n_layers,
-                max_epochs=self.embedding_max_epochs,
-                max_epochs_scanvi=self.embedding_max_epochs_scanvi,
-                accelerator=self.accelerator,
-                batch_key=self.batch_key,
-                cell_type_key=self.cell_type_key,
-                hvg_key=self.hvg_key,
-                counts_layer=self.counts_layer,
+        else:  # embedding_method == "scanvi"
+            embedding_params = self.scanvi_params.copy()
+            embedding_params.update(
+                {
+                    "batch_key": self.batch_key,
+                    "cell_type_key": self.cell_type_key,
+                    "hvg_key": self.hvg_key,
+                    "counts_layer": self.counts_layer,
+                }
             )
+            self.embedding_model = scANVIMethod(self.adata, **embedding_params)
             self.embedding_model.fit_transform()
             expression_embedding_key = "X_scanvi"
-        else:
-            raise ValueError(f"Unknown embedding method: {self.embedding_method}")
 
         # Step 2: Run scVIVA preprocessing to compute spatial neighborhoods
-        logger.info("Running scVIVA preprocessing with k_nn=%d", self.k_nn)
+        logger.info("Running scVIVA preprocessing")
+
+        # Prepare preprocessing parameters, filtering out None values for k_nn only
+        preprocessing_params = {
+            "adata": self.adata,
+            "sample_key": self.batch_key,
+            "labels_key": self.cell_type_key,
+            "cell_coordinates_key": self.spatial_key,
+            "expression_embedding_key": expression_embedding_key,
+        }
+
+        # Add k_nn only if not None (let scVIVA use its default otherwise)
+        if self.k_nn is not None:
+            preprocessing_params["k_nn"] = self.k_nn
 
         # Run preprocessing to compute neighborhoods
-        # Using SCVIVA class method for preprocessing
-        scvi.external.SCVIVA.preprocessing_anndata(
-            adata=self.adata,
-            k_nn=self.k_nn,
-            sample_key=self.batch_key,
-            labels_key=self.cell_type_key,
-            cell_coordinates_key=self.spatial_key,
-            expression_embedding_key=expression_embedding_key,
-        )
+        scvi.external.SCVIVA.preprocessing_anndata(**preprocessing_params)
 
         # Step 3: Setup scVIVA data registration
         scvi.external.SCVIVA.setup_anndata(
@@ -874,26 +869,36 @@ class scVIVAMethod(BaseIntegrationMethod):
 
         # Step 4: Create and train scVIVA model
         logger.info("Training scVIVA model")
-        self.model = scvi.external.SCVIVA(
-            self.adata,
-            n_latent=self.n_latent,
-            n_hidden=self.n_hidden,
-            n_layers=self.n_layers,
-            dropout_rate=self.dropout_rate,
+
+        # Prepare scVIVA model parameters, filtering out None values
+        model_params = self._filter_none_params(
+            {
+                "n_latent": self.n_latent,
+                "n_hidden": self.n_hidden,
+                "n_layers": self.n_layers,
+                "dropout_rate": self.dropout_rate,
+            }
         )
 
-        # Train the model with wandb logging
-        wandb_logger = _get_wandb_logger()
-        trainer_kwargs = {}
-        if wandb_logger is not None:
-            trainer_kwargs["logger"] = wandb_logger
-        self.model.train(
-            max_epochs=self.max_epochs,
-            early_stopping=True,
-            accelerator=self.accelerator,
-            batch_size=self.batch_size,
-            **trainer_kwargs,
+        self.model = scvi.external.SCVIVA(self.adata, **model_params)
+        logger.info("Set up scVIVA model: %s", self.model)
+
+        # Prepare training parameters, filtering out None values
+        train_params = self._filter_none_params(
+            {
+                "max_epochs": self.max_epochs,
+                "early_stopping": True,  # scVIVA typically uses early stopping
+                "accelerator": self.accelerator,
+                "batch_size": self.batch_size,
+            }
         )
+
+        # Add wandb logger if available
+        wandb_logger = _get_wandb_logger()
+        if wandb_logger is not None:
+            train_params["logger"] = wandb_logger
+
+        self.model.train(**train_params)
         self.is_fitted = True
 
     def transform(self):
