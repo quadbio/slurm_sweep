@@ -176,7 +176,14 @@ class IntegrationEvaluator:
         self.scib_metrics = bm.get_results(min_max_scale=min_max_scale)
         logger.info("scIB metrics evaluation completed.")
 
-    def compute_and_show_embeddings(self, key_added: str = "X_umap", use_rapids: bool = False) -> None:
+    def compute_and_show_embeddings(
+        self,
+        key_added: str = "X_umap",
+        use_rapids: bool = False,
+        additional_colors: str | list[str] | None = None,
+        figsize: tuple[float, float] = (12, 6),
+        wspace: float = 0.7,
+    ) -> None:
         """
         Compute and visualize UMAP embedding.
 
@@ -186,6 +193,10 @@ class IntegrationEvaluator:
             Key in .obsm for storing UMAP embedding.
         use_rapids
             Whether to use rapids_singlecell for acceleration.
+        additional_colors
+            Additional keys in .obs for coloring the UMAP plot. By default, we color in cell type and batch information.
+        wspace
+            Width space between subplots.
         """
         logger.info("Computing UMAP embedding...")
 
@@ -207,9 +218,14 @@ class IntegrationEvaluator:
             sc.tl.umap(self.adata, key_added=key_added)
 
         # Plot embeddings
-        colors = [self.cell_type_key, self.batch_key]
-        with plt.rc_context({"figure.figsize": (8, 6)}):
-            sc.pl.embedding(self.adata, basis=key_added, color=colors, show=False, wspace=0.7)
+        if additional_colors is None:
+            additional_colors = []
+        if isinstance(additional_colors, str):
+            additional_colors = [additional_colors]
+
+        colors = [self.cell_type_key, self.batch_key] + additional_colors
+        with plt.rc_context({"figure.figsize": figsize}):
+            sc.pl.embedding(self.adata, basis=key_added, color=colors, show=False, wspace=wspace)
             plt.savefig(self.figures_dir / "umap_evaluation.png", bbox_inches="tight")
             plt.close()
 
