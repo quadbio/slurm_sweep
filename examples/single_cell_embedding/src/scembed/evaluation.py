@@ -24,6 +24,7 @@ class IntegrationEvaluator:
         embedding_key: str,
         batch_key: str = "batch",
         cell_type_key: str = "cell_type",
+        ignore_cell_types: list[str] | None = None,
         output_dir: str | Path | None = None,
         baseline_embedding_key: str = "X_pca_unintegrated",
     ):
@@ -45,12 +46,23 @@ class IntegrationEvaluator:
         baseline_embedding_key
             Key in .obsm containing the unintegrated baseline embedding. If this embedding
             doesn't exist, it will be computed automatically.
+        ignore_cell_types
+            List of cell types to ignore during evaluation.
         """
-        self.adata = adata
         self.embedding_key = embedding_key
         self.batch_key = batch_key
         self.cell_type_key = cell_type_key
         self.baseline_embedding_key = baseline_embedding_key
+
+        if ignore_cell_types is None:
+            self.adata = adata
+        else:
+            if isinstance(ignore_cell_types, str):
+                ignore_cell_types = [ignore_cell_types]
+
+            mask = adata.obs[self.cell_type_key].isin(ignore_cell_types)
+            self.adata = adata[~mask]
+            logger.info("Ignoring cell types: %s, filtered out %d cells", ignore_cell_types, mask.sum())
 
         # Setup output directories
         self._temp_dir = None
