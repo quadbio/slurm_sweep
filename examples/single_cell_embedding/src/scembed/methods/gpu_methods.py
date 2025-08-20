@@ -849,7 +849,7 @@ class scVIVAMethod(BaseIntegrationMethod):
             )
             self.embedding_model = scVIMethod(self.adata, **embedding_params)
             self.embedding_model.fit_transform()
-            expression_embedding_key = "X_scvi"
+            expression_embedding_key = "X_scVI"
 
         else:  # embedding_method == "scanvi"
             embedding_params = self.scanvi_params.copy()
@@ -863,7 +863,7 @@ class scVIVAMethod(BaseIntegrationMethod):
             )
             self.embedding_model = scANVIMethod(self.adata, **embedding_params)
             self.embedding_model.fit_transform()
-            expression_embedding_key = "X_scanvi"
+            expression_embedding_key = "X_scANVI"
 
         # Step 2: Run scVIVA preprocessing to compute spatial neighborhoods
         logger.info("Running scVIVA preprocessing")
