@@ -843,6 +843,8 @@ class scVIVAMethod(BaseIntegrationMethod):
                     "cell_type_key": self.cell_type_key,
                     "hvg_key": self.hvg_key,
                     "counts_layer": self.counts_layer,
+                    "unlabeled_category": self.unlabeled_category,
+                    "scvi_params": self.scvi_params,
                 }
             )
             self.embedding_model = scANVIMethod(self.adata, **embedding_params)
