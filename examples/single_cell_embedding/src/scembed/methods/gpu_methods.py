@@ -288,7 +288,25 @@ class scANVIMethod(BaseIntegrationMethod):
 class scPoliMethod(BaseIntegrationMethod):
     """scPoli integration method."""
 
-    def __init__(self, adata, embedding_dims: int = 5, n_epochs: int = 50, pretraining_epochs: int = 40, **kwargs):
+    def __init__(
+        self,
+        adata,
+        embedding_dims: int | list[int] | None = None,
+        latent_dim: int | None = None,
+        hidden_layer_sizes: list[int] | None = None,
+        dr_rate: float | None = None,
+        use_mmd: bool | None = None,
+        mmd_on: str | None = None,
+        beta: float | None = None,
+        use_bn: bool | None = None,
+        use_ln: bool | None = None,
+        embedding_max_norm: float | None = None,
+        n_epochs: int | None = None,
+        pretraining_epochs: int | None = None,
+        recon_loss: str | None = None,
+        eta: float | None = None,
+        **kwargs,
+    ):
         """
         Initialize scPoli method.
 
@@ -297,18 +315,66 @@ class scPoliMethod(BaseIntegrationMethod):
         adata
             Annotated data object to integrate.
         embedding_dims
-            Dimensionality of condition embeddings.
+            Dimensionality of condition embeddings. If None, uses scPoli library default.
+        latent_dim
+            Bottleneck layer (z) size. If None, uses scPoli library default.
+        hidden_layer_sizes
+            List of hidden layer sizes for encoder network. If None, uses scPoli library default.
+        dr_rate
+            Dropout rate applied to all layers. If None, uses scPoli library default.
+        use_mmd
+            Whether to use MMD loss on latent dimension. If None, uses scPoli library default.
+        mmd_on
+            Layer for MMD loss calculation ('z' or 'y'). If None, uses scPoli library default.
+        beta
+            Scaling factor for MMD loss. If None, uses scPoli library default.
+        use_bn
+            Whether to apply batch normalization. If None, uses scPoli library default.
+        use_ln
+            Whether to apply layer normalization. If None, uses scPoli library default.
+        embedding_max_norm
+            Max norm allowed for conditional embeddings. If None, uses scPoli library default.
         n_epochs
-            Total number of training epochs.
+            Total number of training epochs. If None, uses scPoli library default.
         pretraining_epochs
-            Number of pretraining epochs.
+            Number of pretraining epochs. If None, uses scPoli library default.
+        recon_loss
+            Reconstruction loss type. If None, uses scPoli library default.
+        eta
+            Eta parameter for training. If None, uses scPoli library default.
         """
         super().__init__(
-            adata, embedding_dims=embedding_dims, n_epochs=n_epochs, pretraining_epochs=pretraining_epochs, **kwargs
+            adata,
+            embedding_dims=embedding_dims,
+            latent_dim=latent_dim,
+            hidden_layer_sizes=hidden_layer_sizes,
+            dr_rate=dr_rate,
+            use_mmd=use_mmd,
+            mmd_on=mmd_on,
+            beta=beta,
+            use_bn=use_bn,
+            use_ln=use_ln,
+            embedding_max_norm=embedding_max_norm,
+            n_epochs=n_epochs,
+            pretraining_epochs=pretraining_epochs,
+            recon_loss=recon_loss,
+            eta=eta,
+            **kwargs,
         )
         self.embedding_dims = embedding_dims
+        self.latent_dim = latent_dim
+        self.hidden_layer_sizes = hidden_layer_sizes
+        self.dr_rate = dr_rate
+        self.use_mmd = use_mmd
+        self.mmd_on = mmd_on
+        self.beta = beta
+        self.use_bn = use_bn
+        self.use_ln = use_ln
+        self.embedding_max_norm = embedding_max_norm
         self.n_epochs = n_epochs
         self.pretraining_epochs = pretraining_epochs
+        self.recon_loss = recon_loss
+        self.eta = eta
         self.model = None
 
     def fit(self):
@@ -334,19 +400,42 @@ class scPoliMethod(BaseIntegrationMethod):
         # Note: scPoli expects raw counts in .X, so we need to copy from layer
         adata_hvg.X = adata_hvg.layers[self.counts_layer].copy()
 
+        # Prepare scPoli model parameters, filtering out None values
+        scpoli_params = self._filter_none_params(
+            {
+                "condition_keys": self.batch_key,
+                "cell_type_keys": self.cell_type_key,
+                "embedding_dims": self.embedding_dims,
+                "latent_dim": self.latent_dim,
+                "hidden_layer_sizes": self.hidden_layer_sizes,
+                "dr_rate": self.dr_rate,
+                "use_mmd": self.use_mmd,
+                "mmd_on": self.mmd_on,
+                "beta": self.beta,
+                "use_bn": self.use_bn,
+                "use_ln": self.use_ln,
+                "embedding_max_norm": self.embedding_max_norm,
+                "recon_loss": self.recon_loss,
+            }
+        )
+
         self.model = scPoli(
             adata=adata_hvg,
-            condition_keys=self.batch_key,
-            cell_type_keys=self.cell_type_key,
-            embedding_dims=self.embedding_dims,
-            recon_loss="nb",
+            **scpoli_params,
+        )
+
+        # Prepare training parameters, filtering out None values
+        train_params = self._filter_none_params(
+            {
+                "n_epochs": self.n_epochs,
+                "pretraining_epochs": self.pretraining_epochs,
+                "eta": self.eta,
+            }
         )
 
         self.model.train(
-            n_epochs=self.n_epochs,
-            pretraining_epochs=self.pretraining_epochs,
             early_stopping_kwargs=early_stopping_kwargs,
-            eta=5,
+            **train_params,
         )
         self.is_fitted = True
 
