@@ -192,6 +192,8 @@ class BaseIntegrationMethod(ABC):
 
             if not has_unlabeled:
                 self._add_unlabeled_category(adata)
+                # Update our reference to the modified categorical
+                cell_type_col = adata.obs[self.cell_type_key]
 
             adata.obs[self.cell_type_key] = cell_type_col.fillna(self.unlabeled_category)
 
