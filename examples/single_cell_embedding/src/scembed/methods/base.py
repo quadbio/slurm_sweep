@@ -183,9 +183,11 @@ class BaseIntegrationMethod(ABC):
             )
 
         # Handle missing values by converting to unlabeled category
-        if cell_type_col.isna().any():
+        n_missing = cell_type_col.isna().sum()
+        if n_missing > 0:
             logger.warning(
-                "Missing values found in cell type key '%s'. Converting to %s",
+                "Found %d missing values in cell type key '%s'. Converting to '%s'",
+                n_missing,
                 self.cell_type_key,
                 self.unlabeled_category,
             )
