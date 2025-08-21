@@ -2,58 +2,10 @@
 
 import scanpy as sc
 import wandb
+from scembed import get_method_instance
 from scembed.evaluation import IntegrationEvaluator
-from scembed.methods import (
-    BaseIntegrationMethod,
-    HarmonyMethod,
-    LIGERMethod,
-    PrecomputedEmbeddingMethod,
-    ResolVIMethod,
-    ScanoramaMethod,
-    scANVIMethod,
-    scPoliMethod,
-    scVIMethod,
-    scVIVAMethod,
-)
 
 from slurm_sweep._logging import logger
-
-
-def get_method_instance(adata, method_name: str, method_params: dict) -> BaseIntegrationMethod:
-    """
-    Create an instance of the specified integration method.
-
-    Parameters
-    ----------
-    adata
-        Annotated data object.
-    method_name
-        Name of the integration method.
-    method_params
-        Parameters for the method.
-
-    Returns
-    -------
-    BaseIntegrationMethod
-        Instance of the integration method.
-    """
-    method_map = {
-        "pca": lambda adata, **kwargs: PrecomputedEmbeddingMethod(adata, embedding_key="X_pca", **kwargs),
-        "harmony": HarmonyMethod,
-        "liger": LIGERMethod,
-        "scanorama": ScanoramaMethod,
-        "scvi": scVIMethod,
-        "scanvi": scANVIMethod,
-        "scpoli": scPoliMethod,
-        "resolvi": ResolVIMethod,
-        "scviva": scVIVAMethod,
-    }
-
-    method_class = method_map.get(method_name.lower())
-    if method_class is None:
-        raise ValueError(f"Unknown method: {method_name}")
-
-    return method_class(adata, **method_params)
 
 
 def main():
@@ -105,7 +57,7 @@ def main():
         batch_key=method.batch_key,
         cell_type_key=method.cell_type_key,
         output_dir=method.output_dir,
-        baseline_embedding_key="X_pca",  # Use existing PCA from preprocessing
+        baseline_embedding_key=method.pca_key,  # Use existing PCA from preprocessing
     )
 
     # Run scIB evaluation

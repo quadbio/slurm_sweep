@@ -21,8 +21,8 @@ wandb:
   parameters:
     config:
       values: [
-        # PCA - single run with no additional parameters
-        {"method": "pca"},
+        # PCA - single run with embedding_key parameter
+        {"method": "precomputed_pca", "embedding_key": "X_pca"},
 
         # LIGER - all combinations of k and lambda_reg
         {"method": "liger", "k": 20, "lambda_reg": 1.0},
