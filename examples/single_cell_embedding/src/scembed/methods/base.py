@@ -121,63 +121,8 @@ class BaseIntegrationMethod(ABC):
         if self.batch_key not in adata.obs.columns:
             raise ValueError(f"Batch key '{self.batch_key}' not found in adata.obs")
 
-        if self.cell_type_key not in adata.obs.columns:
-            logger.warning(
-                "Cell type key '%s' not found in adata.obs. Label-based methods like scANVI require this.",
-                self.cell_type_key,
-            )
-        else:
-            if not isinstance(adata.obs[self.cell_type_key], pd.CategoricalDtype):
-                logger.debug("Converting cell type key '%s' to categorical", self.cell_type_key)
-                adata.obs[self.cell_type_key] = adata.obs[self.cell_type_key].astype("category")
-
-            if self.unlabeled_category in adata.obs[self.cell_type_key].cat.categories:
-                n_unlabeled = adata.obs[self.cell_type_key].value_counts().get(self.unlabeled_category, 0)
-                logger.debug(
-                    "Unlabeled category '%s' with %d cells found in cell type key '%s'",
-                    self.unlabeled_category,
-                    n_unlabeled,
-                    self.cell_type_key,
-                )
-            else:
-                logger.warning(
-                    "Unlabeled category '%s' not found in cell type key '%s'",
-                    self.unlabeled_category,
-                    self.cell_type_key,
-                )
-
-            if any(adata.obs[self.cell_type_key].isna()):
-                logger.warning(
-                    "Missing values found in cell type key '%s'. Converting to %s",
-                    self.cell_type_key,
-                    self.unlabeled_category,
-                )
-
-                if self.unlabeled_category in adata.obs[self.cell_type_key].cat.categories:
-                    adata.obs[self.cell_type_key] = adata.obs[self.cell_type_key].fillna(self.unlabeled_category)
-                else:
-                    # generate color dict
-                    if f"{self.cell_type_key}_colors" in adata.uns:
-                        cmap = dict(
-                            zip(
-                                adata.obs[self.cell_type_key].cat.categories,
-                                adata.uns[f"{self.cell_type_key}_colors"],
-                                strict=True,
-                            )
-                        )
-                    else:
-                        cmap = None
-
-                    adata.obs[self.cell_type_key] = adata.obs[self.cell_type_key].cat.add_categories(
-                        self.unlabeled_category
-                    )
-                    adata.obs[self.cell_type_key] = adata.obs[self.cell_type_key].fillna(self.unlabeled_category)
-
-                    if cmap is not None:
-                        cmap.update({self.unlabeled_category: self.unlabeled_color})
-                        adata.uns[f"{self.cell_type_key}_colors"] = [
-                            cmap[cat] for cat in adata.obs[self.cell_type_key].cat.categories
-                        ]
+        # Validate and process cell type key
+        self._validate_cell_type_key(adata)
 
         # Check if counts layer exists (if not using X directly)
         if self.counts_layer != "X" and self.counts_layer not in adata.layers:
@@ -203,6 +148,74 @@ class BaseIntegrationMethod(ABC):
         logger.info("Data validation passed for %s method.", self.name)
 
         return adata
+
+    def _validate_cell_type_key(self, adata: ad.AnnData) -> None:
+        """Validate and process cell type key with unlabeled category handling."""
+        if self.cell_type_key not in adata.obs.columns:
+            logger.warning(
+                "Cell type key '%s' not found in adata.obs. Label-based methods like scANVI require this.",
+                self.cell_type_key,
+            )
+            return
+
+        # Convert to categorical if needed
+        cell_type_col = adata.obs[self.cell_type_key]
+        if not isinstance(cell_type_col.dtype, pd.CategoricalDtype):
+            logger.debug("Converting cell type key '%s' to categorical", self.cell_type_key)
+            adata.obs[self.cell_type_key] = cell_type_col.astype("category")
+            cell_type_col = adata.obs[self.cell_type_key]
+
+        # Check if unlabeled category exists
+        has_unlabeled = self.unlabeled_category in cell_type_col.cat.categories
+        if has_unlabeled:
+            n_unlabeled = cell_type_col.value_counts().get(self.unlabeled_category, 0)
+            logger.debug(
+                "Unlabeled category '%s' with %d cells found in cell type key '%s'",
+                self.unlabeled_category,
+                n_unlabeled,
+                self.cell_type_key,
+            )
+        else:
+            logger.warning(
+                "Unlabeled category '%s' not found in cell type key '%s'",
+                self.unlabeled_category,
+                self.cell_type_key,
+            )
+
+        # Handle missing values by converting to unlabeled category
+        if cell_type_col.isna().any():
+            logger.warning(
+                "Missing values found in cell type key '%s'. Converting to %s",
+                self.cell_type_key,
+                self.unlabeled_category,
+            )
+
+            if not has_unlabeled:
+                self._add_unlabeled_category(adata)
+
+            adata.obs[self.cell_type_key] = cell_type_col.fillna(self.unlabeled_category)
+
+    def _add_unlabeled_category(self, adata: ad.AnnData) -> None:
+        """Add unlabeled category to cell type key and update colors if they exist."""
+        # Preserve existing color mapping
+        color_key = f"{self.cell_type_key}_colors"
+        cmap = None
+        if color_key in adata.uns:
+            cmap = dict(
+                zip(
+                    adata.obs[self.cell_type_key].cat.categories,
+                    adata.uns[color_key],
+                    strict=True,
+                )
+            )
+
+        # Add unlabeled category
+        adata.obs[self.cell_type_key] = adata.obs[self.cell_type_key].cat.add_categories(self.unlabeled_category)
+
+        # Update color mapping if it existed
+        if cmap is not None:
+            cmap[self.unlabeled_category] = self.unlabeled_color
+            adata.uns[color_key] = [cmap[cat] for cat in adata.obs[self.cell_type_key].cat.categories]
 
     def validate_spatial_adata(self, adata: ad.AnnData) -> None:
         """
