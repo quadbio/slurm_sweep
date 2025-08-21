@@ -31,6 +31,7 @@ class BaseIntegrationMethod(ABC):
         spatial_key: str = "spatial",
         pca_key: str = "X_pca",
         unlabeled_category: str = "unknown",
+        unlabeled_color: str = "#8f8f8f",
         **kwargs,
     ):
         """
@@ -58,6 +59,8 @@ class BaseIntegrationMethod(ABC):
             Key in adata.obsm for PCA embedding.
         unlabeled_category
             Category name for unlabeled cells in label-based methods.
+        unlabeled_color
+            Color for unlabeled cells in label-based methods.
         **kwargs
             Method-specific parameters.
         """
@@ -74,6 +77,7 @@ class BaseIntegrationMethod(ABC):
         self.spatial_key = spatial_key
         self.pca_key = pca_key
         self.unlabeled_category = unlabeled_category
+        self.unlabeled_color = unlabeled_color
 
         # Validate and store the data
         adata_work = self.validate_adata(adata.copy())
@@ -117,6 +121,64 @@ class BaseIntegrationMethod(ABC):
         if self.batch_key not in adata.obs.columns:
             raise ValueError(f"Batch key '{self.batch_key}' not found in adata.obs")
 
+        if self.cell_type_key not in adata.obs.columns:
+            logger.warning(
+                "Cell type key '%s' not found in adata.obs. Label-based methods like scANVI require this.",
+                self.cell_type_key,
+            )
+        else:
+            if not isinstance(adata.obs[self.cell_type_key], pd.CategoricalDtype):
+                logger.debug("Converting cell type key '%s' to categorical", self.cell_type_key)
+                adata.obs[self.cell_type_key] = adata.obs[self.cell_type_key].astype("category")
+
+            if self.unlabeled_category in adata.obs[self.cell_type_key].cat.categories:
+                n_unlabeled = adata.obs[self.cell_type_key].value_counts().get(self.unlabeled_category, 0)
+                logger.debug(
+                    "Unlabeled category '%s' with %d cells found in cell type key '%s'",
+                    self.unlabeled_category,
+                    n_unlabeled,
+                    self.cell_type_key,
+                )
+            else:
+                logger.warning(
+                    "Unlabeled category '%s' not found in cell type key '%s'",
+                    self.unlabeled_category,
+                    self.cell_type_key,
+                )
+
+            if any(adata.obs[self.cell_type_key].isna()):
+                logger.warning(
+                    "Missing values found in cell type key '%s'. Converting to %s",
+                    self.cell_type_key,
+                    self.unlabeled_category,
+                )
+
+                if self.unlabeled_category in adata.obs[self.cell_type_key].cat.categories:
+                    adata.obs[self.cell_type_key] = adata.obs[self.cell_type_key].fillna(self.unlabeled_category)
+                else:
+                    # generate color dict
+                    if f"{self.cell_type_key}_colors" in adata.uns:
+                        cmap = dict(
+                            zip(
+                                adata.obs[self.cell_type_key].cat.categories,
+                                adata.uns[f"{self.cell_type_key}_colors"],
+                                strict=True,
+                            )
+                        )
+                    else:
+                        cmap = None
+
+                    adata.obs[self.cell_type_key] = adata.obs[self.cell_type_key].cat.add_categories(
+                        self.unlabeled_category
+                    )
+                    adata.obs[self.cell_type_key] = adata.obs[self.cell_type_key].fillna(self.unlabeled_category)
+
+                    if cmap is not None:
+                        cmap.update({self.unlabeled_category: self.unlabeled_color})
+                        adata.uns[f"{self.cell_type_key}_colors"] = [
+                            cmap[cat] for cat in adata.obs[self.cell_type_key].cat.categories
+                        ]
+
         # Check if counts layer exists (if not using X directly)
         if self.counts_layer != "X" and self.counts_layer not in adata.layers:
             logger.warning("Counts layer '%s' not found in adata.layers", self.counts_layer)
@@ -134,7 +196,9 @@ class BaseIntegrationMethod(ABC):
 
         # Check for PCA embedding (some methods will need this)
         if self.pca_key not in adata.obsm:
-            logger.warning("PCA embedding '%s' not found in adata.obsm. Some methods may require this.", self.pca_key)
+            logger.warning(
+                "PCA embedding '%s' not found in adata.obsm. Methods like Harmony require this.", self.pca_key
+            )
 
         logger.info("Data validation passed for %s method.", self.name)
 
