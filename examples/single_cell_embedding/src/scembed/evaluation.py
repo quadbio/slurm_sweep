@@ -181,7 +181,7 @@ class IntegrationEvaluator:
         key_added: str = "X_umap",
         use_rapids: bool = False,
         additional_colors: str | list[str] | None = None,
-        wspace: float = 0.7,
+        **kwargs: Any,
     ) -> None:
         """
         Compute and visualize UMAP embedding.
@@ -194,8 +194,8 @@ class IntegrationEvaluator:
             Whether to use rapids_singlecell for acceleration.
         additional_colors
             Additional keys in .obs for coloring the UMAP plot. By default, we color in cell type and batch information.
-        wspace
-            Width space between subplots.
+        kwargs
+            Additional keyword arguments for scanpy.pp.embedding
         """
         logger.info("Computing UMAP embedding...")
 
@@ -224,7 +224,7 @@ class IntegrationEvaluator:
 
         colors = [self.cell_type_key, self.batch_key] + additional_colors
 
-        sc.pl.embedding(self.adata, basis=key_added, color=colors, show=False, wspace=wspace)
+        sc.pl.embedding(self.adata, basis=key_added, color=colors, show=False, **kwargs)
         plt.savefig(self.figures_dir / "umap_evaluation.png", bbox_inches="tight")
         plt.close()
 
