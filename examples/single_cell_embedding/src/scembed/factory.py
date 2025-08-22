@@ -1,5 +1,17 @@
 """Factory for creating integration method instances."""
 
+from scembed.methods import (
+    HarmonyMethod,
+    HVGMethod,
+    LIGERMethod,
+    PrecomputedEmbeddingMethod,
+    ResolVIMethod,
+    ScanoramaMethod,
+    scANVIMethod,
+    scPoliMethod,
+    scVIMethod,
+    scVIVAMethod,
+)
 from slurm_sweep._logging import logger
 
 
@@ -32,18 +44,6 @@ def get_method_instance(adata, method_name: str, method_params: dict):
     >>> method = get_method_instance(adata, "precomputed_pca", {"embedding_key": "X_pca"})
     >>> method = get_method_instance(adata, "precomputed_umap", {"embedding_key": "X_umap"})
     """
-    from scembed.methods import (
-        HarmonyMethod,
-        LIGERMethod,
-        PrecomputedEmbeddingMethod,
-        ResolVIMethod,
-        ScanoramaMethod,
-        scANVIMethod,
-        scPoliMethod,
-        scVIMethod,
-        scVIVAMethod,
-    )
-
     # Available integration methods
     method_map = {
         "harmony": HarmonyMethod,
@@ -55,6 +55,7 @@ def get_method_instance(adata, method_name: str, method_params: dict):
         "scpoli": scPoliMethod,
         "scvi": scVIMethod,
         "scviva": scVIVAMethod,
+        "hvg": HVGMethod,
     }
 
     method_name_lower = method_name.lower()

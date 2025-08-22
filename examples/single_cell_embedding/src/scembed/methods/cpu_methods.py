@@ -1,6 +1,7 @@
 """CPU-based integration methods."""
 
 import numpy as np
+import scanpy as sc
 
 from scembed.check import check_deps
 
@@ -223,6 +224,114 @@ class LIGERMethod(BaseIntegrationMethod):
             embedding[batch_mask] = liger_data.adata_list[i].obsm["H_norm"]
 
         self.adata.obsm[self.embedding_key] = embedding
+
+
+class HVGMethod(BaseIntegrationMethod):
+    """Highly Variable Genes method using scanpy."""
+
+    def __init__(
+        self,
+        adata,
+        layer: str | None = None,
+        n_top_genes: int | None = None,
+        min_mean: float | None = None,
+        max_mean: float | None = None,
+        min_disp: float | None = None,
+        max_disp: float | None = None,
+        span: float | None = None,
+        n_bins: int | None = None,
+        flavor: str | None = None,
+        check_values: bool | None = None,
+        **kwargs,
+    ):
+        """
+        Initialize HVG method.
+
+        For most of these, If None, uses scanpy default.
+
+        Parameters
+        ----------
+        adata
+            Annotated data object to process.
+        layer
+            If provided, use adata.layers[layer] for expression values instead of adata.X.
+        n_top_genes
+            Number of highly-variable genes to keep. Mandatory if flavor='seurat_v3'.
+        min_mean
+            Minimum mean expression cutoff for HVG selection. Ignored if flavor='seurat_v3'.
+        max_mean
+            Maximum mean expression cutoff for HVG selection. Ignored if flavor='seurat_v3'.
+        min_disp
+            Minimum normalized dispersion cutoff for HVG selection. Ignored if flavor='seurat_v3'.
+        max_disp
+            Maximum normalized dispersion cutoff for HVG selection. Ignored if flavor='seurat_v3'.
+        span
+            The fraction of data used when estimating variance in loess model if flavor='seurat_v3'.
+        n_bins
+            Number of bins for binning mean gene expression.
+        flavor
+            Method for identifying HVGs. Options: 'seurat', 'cell_ranger', 'seurat_v3', 'seurat_v3_paper'.
+        check_values
+            Check if counts in selected layer are integers. Only used if flavor='seurat_v3'/'seurat_v3_paper'.
+        """
+        super().__init__(adata, **kwargs)
+        self.layer = layer
+        self.n_top_genes = n_top_genes
+        self.min_mean = min_mean
+        self.max_mean = max_mean
+        self.min_disp = min_disp
+        self.max_disp = max_disp
+        self.span = span
+        self.n_bins = n_bins
+        self.flavor = flavor
+        self.check_values = check_values
+
+    def fit(self):
+        """Fit HVG method - no explicit fitting needed."""
+        self.is_fitted = True
+
+    def transform(self):
+        """Apply HVG selection and use HVG expression as embedding."""
+        # Filter None parameters to use library defaults
+        hvg_params = self._filter_none_params(
+            {
+                "layer": self.layer,
+                "n_top_genes": self.n_top_genes,
+                "min_mean": self.min_mean,
+                "max_mean": self.max_mean,
+                "min_disp": self.min_disp,
+                "max_disp": self.max_disp,
+                "span": self.span,
+                "n_bins": self.n_bins,
+                "flavor": self.flavor,
+                "batch_key": self.batch_key,  # Use the batch_key from base class
+                "subset": False,  # We don't want to subset the data in place
+                "inplace": True,  # We want to modify the adata object
+                "check_values": self.check_values,
+            }
+        )
+
+        # Compute highly variable genes
+        sc.pp.highly_variable_genes(self.adata, **hvg_params)
+
+        # Get HVG subset for embedding
+        hvg_mask = self.adata.var["highly_variable"]
+        if not hvg_mask.any():
+            raise ValueError("No highly variable genes found. Consider adjusting parameters.")
+
+        # Use expression values of HVGs as embedding coordinates
+        if self.layer is not None:
+            if self.layer not in self.adata.layers:
+                raise ValueError(f"Layer '{self.layer}' not found in adata.layers")
+            hvg_expression = self.adata.layers[self.layer][:, hvg_mask]
+        else:
+            hvg_expression = self.adata.X[:, hvg_mask]
+
+        # Convert to dense array if sparse
+        if hasattr(hvg_expression, "toarray"):
+            hvg_expression = hvg_expression.toarray()
+
+        self.adata.obsm[self.embedding_key] = hvg_expression
 
 
 class ScanoramaMethod(BaseIntegrationMethod):
