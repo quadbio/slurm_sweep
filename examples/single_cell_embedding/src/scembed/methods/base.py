@@ -314,7 +314,7 @@ class BaseIntegrationMethod(ABC):
         format_type
             Format to save embedding in. Options: 'parquet', 'pickle', or 'h5'.
         filename
-            Custom filename (without extension). If None, uses method name.
+            Custom filename (without extension). If None, uses "embedding".
         compression
             Whether to use compression (gzip for all formats).
 
@@ -333,7 +333,7 @@ class BaseIntegrationMethod(ABC):
         if self.embedding_key not in self.adata.obsm:
             raise ValueError(f"Embedding key '{self.embedding_key}' not found in adata.obsm")
 
-        filename = filename or f"embedding_{self.name.lower()}"
+        filename = filename or "embedding"
 
         # Create DataFrame (shared for parquet/pickle)
         emb_df = pd.DataFrame(
