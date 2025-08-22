@@ -20,6 +20,7 @@ wandb/
 slurm_logs/
 .ipynb_checkpoints/
 results/
+top_results/
 
 # data files
 *.h5ad

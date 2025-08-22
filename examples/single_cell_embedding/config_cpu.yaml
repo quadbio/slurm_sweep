@@ -1,5 +1,5 @@
 general:
-  project_name: scembed_test
+  project_name: scembed_test_2
   mamba_env: slurm_sweep
   entity: spatial_vi
   modules: stack eth_proxy
