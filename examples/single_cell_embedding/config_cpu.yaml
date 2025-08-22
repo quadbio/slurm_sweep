@@ -24,13 +24,13 @@ wandb:
         # PCA - single run with embedding_key parameter
         {"method": "precomputed_pca", "embedding_key": "X_pca"},
 
-        # LIGER - all combinations of k and lambda_reg
-        {"method": "liger", "k": 20, "lambda_reg": 1.0},
-        {"method": "liger", "k": 20, "lambda_reg": 5.0},
-        {"method": "liger", "k": 30, "lambda_reg": 1.0},
-        {"method": "liger", "k": 30, "lambda_reg": 5.0},
+        # LIGER
+        {"method": "liger", "k": 20, "value_lambda": 1.0},
+        {"method": "liger", "k": 20, "value_lambda": 5.0},
+        {"method": "liger", "k": 30, "value_lambda": 1.0},
+        {"method": "liger", "k": 30, "value_lambda": 5.0},
 
-        # Scanorama - all combinations of sigma and alpha
+        # Scanorama
         {"method": "scanorama", "sigma": 15.0, "alpha": 0.1},
         {"method": "scanorama", "sigma": 15.0, "alpha": 0.3},
         {"method": "scanorama", "sigma": 30.0, "alpha": 0.1},

@@ -7,6 +7,14 @@ from scembed.evaluation import IntegrationEvaluator
 
 from slurm_sweep._logging import logger
 
+sc.set_figure_params(frameon=False, fontsize=12)
+
+# Define some constants for this dataset
+CT_KEY = "cell_type"
+BATCH_KEY = "batch"
+UNLABELED_CATEGORY = "unknown"
+PCA_KEY = "X_pca"
+
 
 def main():
     """Main training function."""
@@ -19,6 +27,9 @@ def main():
 
     # Extract method-specific parameters (everything except 'method')
     method_params = {k: v for k, v in config.items() if k != "method"}
+    method_params.update(
+        {"batch_key": BATCH_KEY, "cell_type_key": CT_KEY, "pca_key": PCA_KEY, "unlabeled_category": UNLABELED_CATEGORY}
+    )
 
     logger.info("Method: %s", method_name)
     logger.info("Method params: %s", method_params)
@@ -49,6 +60,20 @@ def main():
         logger.info("Model saved to %s", model_path)
         wandb.log_model(str(model_path), name="trained_model")
 
+    # Save embedding coordinates
+    logger.info("Saving embedding coordinates...")
+    emb_path = method.save_embedding(format_type="parquet")
+
+    # Log embedding as wandb artifact
+    logger.info("Logging embedding to wandb...")
+    try:
+        artifact = wandb.Artifact("embedding", type="dataset")
+        artifact.add_file(str(emb_path))
+        wandb.log_artifact(artifact)
+        logger.info("Successfully logged embedding artifact to wandb")
+    except Exception as e:  # noqa
+        logger.error("Failed to log embedding artifact to wandb: %s", e)
+
     # Evaluate integration
     logger.info("Evaluating integration...")
     evaluator = IntegrationEvaluator(
@@ -65,7 +90,7 @@ def main():
     wandb.summary["scib"] = evaluator.scib_metrics.loc[method.embedding_key].to_dict()
 
     # Generate UMAP plots
-    evaluator.compute_and_show_embeddings()
+    evaluator.compute_and_show_embeddings(wspace=0.7)
     wandb.log({"umap_evaluation": wandb.Image(str(evaluator.figures_dir / "umap_evaluation.png"))})
 
     logger.info("✓ Run completed successfully")
