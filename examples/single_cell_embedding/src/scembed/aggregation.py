@@ -1,6 +1,8 @@
 """WandB sweep results aggregation and visualization for scIB benchmarking."""
 
 from dataclasses import fields
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import numpy as np
 import pandas as pd
@@ -10,6 +12,7 @@ from scib_metrics.benchmark import BatchCorrection, Benchmarker, BioConservation
 from scib_metrics.benchmark._core import metric_name_cleaner
 from tqdm import tqdm
 
+from scembed.utils import _download_artifact_by_run_id
 from slurm_sweep._logging import logger
 
 
@@ -25,11 +28,24 @@ class scIBAggregator:
         WandB entity name.
     project
         WandB project name.
+    output_dir
+        Directory for saving downloaded models and embeddings. If None, creates temporary directory.
     """
 
-    def __init__(self, entity: str, project: str):
+    def __init__(self, entity: str, project: str, output_dir: str | Path | None = None):
         self.entity = entity
         self.project = project
+
+        # Setup output directories
+        self._temp_dir = None
+        if output_dir is None:
+            self._temp_dir = TemporaryDirectory()
+            output_dir = Path(self._temp_dir.name)
+        elif isinstance(output_dir, str):
+            output_dir = Path(output_dir)
+
+        self.output_dir = output_dir
+        self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Raw data storage
         self.raw_df: pd.DataFrame | None = None
@@ -361,6 +377,7 @@ class scIBAggregator:
 
             # Collect best run data
             best_config = configs_df.loc[best_idx].copy()
+            best_config["run_id"] = best_idx  # Add run_id from the index
             best_config.name = method  # Use method name as index
             best_configs.append(best_config)
 
@@ -424,6 +441,100 @@ class scIBAggregator:
 
         return self.method_data[method]
 
+    def get_models_and_embeddings(
+        self,
+        model_artifact_name: str = "trained_model",
+        embedding_artifact_name: str = "embedding",
+    ) -> None:
+        """
+        Download models and embeddings for the best-performing run per method.
+
+        Creates a folder structure in output_dir with models and embeddings organized by method.
+        Models are only downloaded for methods that have them (GPU-based methods).
+
+        Parameters
+        ----------
+        model_artifact_name
+            Name of the model artifact in wandb.
+        embedding_artifact_name
+            Name of the embedding artifact in wandb.
+        """
+        if self.results is None:
+            raise ValueError("Must call aggregate() first to determine best runs per method")
+
+        configs_df = self.results["configs"]
+
+        for _, row in configs_df.iterrows():
+            method = row["method"]
+            run_id = row["run_id"]
+
+            logger.debug("Processing method '%s', run_id: %s", method, run_id)
+
+            # Create method directory
+            method_dir = self.output_dir / method
+            method_dir.mkdir(parents=True, exist_ok=True)
+
+            # Create subdirectories
+            models_dir = method_dir / "models"
+            embeddings_dir = method_dir / "embeddings"
+            models_dir.mkdir(exist_ok=True)
+            embeddings_dir.mkdir(exist_ok=True)
+
+            # Track what was downloaded for summary
+            downloaded_items = []
+            missing_items = []
+
+            # Try to download model (may not exist for CPU methods)
+            model_path = _download_artifact_by_run_id(
+                run_id=run_id,
+                entity=self.entity,
+                project=self.project,
+                artifact_name=model_artifact_name,
+                download_dir=models_dir,
+            )
+
+            if model_path is None:
+                logger.debug("No model artifact found for method '%s'", method)
+                missing_items.append("model")
+            else:
+                logger.debug("Downloaded model for method '%s'", method)
+                downloaded_items.append("models")
+
+            # Try to download embedding
+            embedding_path = _download_artifact_by_run_id(
+                run_id=run_id,
+                entity=self.entity,
+                project=self.project,
+                artifact_name=embedding_artifact_name,
+                download_dir=embeddings_dir,
+            )
+
+            if embedding_path is None:
+                missing_items.append("embedding")
+            else:
+                downloaded_items.append("embeddings")
+
+            # Summary logging per method
+            if downloaded_items and missing_items:
+                logger.info(
+                    "Downloaded %s for method '%s' to %s/%s/",
+                    " and ".join(downloaded_items),
+                    method,
+                    self.output_dir,
+                    method,
+                )
+                logger.warning("Missing %s for method '%s' (run_id: %s)", " and ".join(missing_items), method, run_id)
+            elif downloaded_items:
+                logger.info(
+                    "Downloaded %s for method '%s' to %s/%s/",
+                    " and ".join(downloaded_items),
+                    method,
+                    self.output_dir,
+                    method,
+                )
+            else:
+                logger.warning("No artifacts found for method '%s' (run_id: %s)", method, run_id)
+
     @property
     def available_methods(self) -> list[str]:
         """List of available methods in the data."""
@@ -453,6 +564,7 @@ class scIBAggregator:
             f"{self.entity}/{self.project}, "
             f"{n_valid_runs}/{self.n_runs_fetched} runs, "
             f"{n_methods} methods, "
-            f"{n_metrics} metrics"
+            f"{n_metrics} metrics, "
+            f"output_dir='{self.output_dir}'"
             f"{status})"
         )

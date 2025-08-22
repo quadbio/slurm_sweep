@@ -1,5 +1,5 @@
 general:
-  project_name: scembed_test
+  project_name: scembed_test_2
   mamba_env: scembed
   entity: spatial_vi
   modules: stack eth_proxy
@@ -22,12 +22,12 @@ wandb:
   parameters:
     config:
       values: [
-        # Harmony - theta parameter values
+        # Harmony
         {"method": "harmony", "theta": 1.0},
         {"method": "harmony", "theta": 2.0},
         {"method": "harmony", "theta": 5.0},
 
-        # scVI - all combinations of n_latent and n_layers
+        # scVI
         {"method": "scvi", "n_latent": 10, "n_layers": 1},
         {"method": "scvi", "n_latent": 10, "n_layers": 2},
         {"method": "scvi", "n_latent": 30, "n_layers": 1},
@@ -35,13 +35,13 @@ wandb:
         {"method": "scvi", "n_latent": 50, "n_layers": 1},
         {"method": "scvi", "n_latent": 50, "n_layers": 2},
 
-        # scANVI - all combinations of n_latent and max_epochs_scanvi (n_layers fixed at 2)
-        {"method": "scanvi", "n_latent": 10, "n_layers": 2, "max_epochs_scanvi": 20},
-        {"method": "scanvi", "n_latent": 10, "n_layers": 2, "max_epochs_scanvi": 50},
-        {"method": "scanvi", "n_latent": 30, "n_layers": 2, "max_epochs_scanvi": 20},
-        {"method": "scanvi", "n_latent": 30, "n_layers": 2, "max_epochs_scanvi": 50},
+        # scANVI
+        {"method": "scanvi", "n_latent": 10, "n_layers": 2, "max_epochs": 20},
+        {"method": "scanvi", "n_latent": 10, "n_layers": 2, "max_epochs": 50},
+        {"method": "scanvi", "n_latent": 30, "n_layers": 2, "max_epochs": 20},
+        {"method": "scanvi", "n_latent": 30, "n_layers": 2, "max_epochs": 50},
 
-        # scPoli - all combinations of embedding_dims (n_epochs and pretraining_epochs fixed)
+        # scPoli
         {"method": "scpoli", "embedding_dims": 5, "n_epochs": 50, "pretraining_epochs": 40},
         {"method": "scpoli", "embedding_dims": 10, "n_epochs": 50, "pretraining_epochs": 40}
       ]

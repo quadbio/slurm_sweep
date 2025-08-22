@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 requires = [ "hatchling" ]
 
 [project]
-name = "scembed-example"
+name = "scembed"
 version = "0.0.1"
 requires-python = ">=3.10"
 classifiers = [
@@ -15,11 +15,15 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
+  # Data I/O and storage
+  "pyarrow>=21", # Required for parquet support in pandas
+
   # Single-cell analysis
   "scanpy>=1.11.4",
 
   # Evaluation
   "scib-metrics>=0.5.6",
+  "wandb",
 ]
 
 optional-dependencies.all = [
