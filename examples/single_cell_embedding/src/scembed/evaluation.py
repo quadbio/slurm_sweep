@@ -143,7 +143,7 @@ class IntegrationEvaluator:
             if not isinstance(values, (list | tuple)):
                 values = [values]
             mask = adata_work.obs[key].isin(values)
-            logger.info("Subsetting to %s cells", mask.sum())
+            logger.info("Subsetting to %s cells", f"{mask.sum():,}")
             adata_work = adata_work[mask].copy()
 
         # Filter cells without cell type annotations
