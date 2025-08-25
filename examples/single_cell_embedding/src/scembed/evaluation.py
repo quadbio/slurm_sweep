@@ -105,7 +105,7 @@ class IntegrationEvaluator:
         subsample_to: int | None = None,
         subsample_strategy: Literal["naive", "proportional"] = "naive",
         subsample_key: str | None = None,
-        subset_to: tuple[str, str | list[str]] = None,
+        subset_to: tuple[str, str | int | list[str | int]] | None = None,
     ) -> None:
         """
         Evaluate integration using scIB metrics.
@@ -140,7 +140,7 @@ class IntegrationEvaluator:
         # Subset if requrested
         if subset_to is not None:
             key, values = subset_to
-            if isinstance(values, str):
+            if not isinstance(values, (list | tuple)):
                 values = [values]
             mask = adata_work.obs[key].isin(values)
             logger.info("Subsetting to %s cells", mask.sum())
