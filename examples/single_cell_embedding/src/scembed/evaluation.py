@@ -143,6 +143,7 @@ class IntegrationEvaluator:
             if isinstance(values, str):
                 values = [values]
             mask = adata_work.obs[key].isin(values)
+            logger.info("Subsetting to %s cells", mask.sum())
             adata_work = adata_work[mask].copy()
 
         # Filter cells without cell type annotations
