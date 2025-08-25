@@ -105,6 +105,7 @@ class IntegrationEvaluator:
         subsample_to: int | None = None,
         subsample_strategy: Literal["naive", "proportional"] = "naive",
         subsample_key: str | None = None,
+        subset_to: tuple[str, str | list[str]] = None,
     ) -> None:
         """
         Evaluate integration using scIB metrics.
@@ -121,6 +122,8 @@ class IntegrationEvaluator:
             Strategy for subsampling when subsample_to is provided.
         subsample_key
             Key for proportional subsampling. If None, uses batch_key for proportional strategy.
+        subset_to
+            Tuple of a key in .obs and a list of categories to subset to.
         """
         logger.info("Computing scIB metrics...")
 
@@ -133,6 +136,14 @@ class IntegrationEvaluator:
             )
         else:
             adata_work = self.adata
+
+        # Subset if requrested
+        if subset_to is not None:
+            key, values = subset_to
+            if isinstance(values, str):
+                values = [values]
+            mask = adata_work.obs[key].isin(values)
+            adata_work = adata_work[mask].copy()
 
         # Filter cells without cell type annotations
         before_filter = adata_work.shape[0]
