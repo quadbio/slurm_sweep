@@ -445,9 +445,10 @@ class scIBAggregator:
             raise ValueError("Must call aggregate() first to determine best runs per method")
 
         configs_df = self.results["configs"]
+        assert isinstance(configs_df, pd.DataFrame), "configs should always be a DataFrame"
 
-        for _, row in configs_df.iterrows():
-            method = row["method"]
+        for method in configs_df.index:
+            row = configs_df.loc[method]
             run_id = row["run_id"]
 
             logger.debug("Processing method '%s', run_id: %s", method, run_id)
