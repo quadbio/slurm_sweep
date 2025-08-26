@@ -370,6 +370,16 @@ class scIBAggregator:
 
         # Create aggregated DataFrames
         configs_df = pd.DataFrame(best_configs)
+
+        # Remove redundant 'method' column (since DataFrame is indexed by method)
+        if "method" in configs_df.columns:
+            configs_df = configs_df.drop(columns=["method"])
+
+        # Ensure 'run_id' is the first column
+        if "run_id" in configs_df.columns:
+            cols = ["run_id"] + [col for col in configs_df.columns if col != "run_id"]
+            configs_df = configs_df[cols]
+
         other_logs_df = pd.DataFrame(best_other_logs)
 
         # Create metrics DataFrame and Benchmarker
