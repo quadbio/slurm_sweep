@@ -297,7 +297,7 @@ class scIBAggregator:
 
         return bm
 
-    def aggregate(self, sort_by: str = "Total") -> None:
+    def aggregate(self, sort_by: str = "Total", min_max_scale_for_selection: bool = True) -> None:
         """
         Aggregate best run per method into unified results structure.
 
@@ -311,6 +311,11 @@ class scIBAggregator:
         sort_by
             Metric to sort by for selecting best run per method.
             Default is "Total" (overall scIB score).
+        min_max_scale_for_selection
+            Whether to use min-max scaled metrics for selecting the best run per method.
+            If True, uses scaled metrics for fair comparison across different metric ranges.
+            If False, uses raw metrics for selection.
+            Default is True. Note: reported metrics are always raw (non-scaled) values.
         """
         if not self.method_data:
             raise ValueError("No data available. Call fetch_runs() first.")
@@ -324,28 +329,28 @@ class scIBAggregator:
             configs_df = data["configs"]
             other_logs_df = data["other_logs"]
 
-            # Get metrics DataFrame from Benchmarker
-            try:
-                results_df = benchmarker.get_results()
-                # Remove the "Metric Type" row if present
-                if "Metric Type" in results_df.index:
-                    metrics_df = results_df.drop(index="Metric Type")
-                else:
-                    metrics_df = results_df
-            except (AttributeError, KeyError, ValueError):
-                # Fallback if benchmarker is actually a DataFrame (for failed Benchmarker creation)
-                if isinstance(benchmarker, pd.DataFrame):
-                    metrics_df = benchmarker.drop(columns=["method"])
-                else:
-                    logger.warning("Could not extract metrics for method '%s', skipping", method)
-                    continue
+            # Get metrics DataFrame from Benchmarker for SELECTION (user choice of scaling)
+            selection_results_df = benchmarker.get_results(min_max_scale=min_max_scale_for_selection)
+            # Remove the "Metric Type" row if present
+            if "Metric Type" in selection_results_df.index:
+                selection_metrics_df = selection_results_df.drop(index="Metric Type")
+            else:
+                selection_metrics_df = selection_results_df
 
-            if sort_by not in metrics_df.columns:
+            if sort_by not in selection_metrics_df.columns:
                 logger.warning("Metric '%s' not found for method '%s', skipping", sort_by, method)
                 continue
 
-            # Find best run
-            best_idx = metrics_df[sort_by].idxmax()
+            # Find best run using the selection metrics (scaled or unscaled as requested)
+            best_idx = selection_metrics_df[sort_by].idxmax()
+
+            # Get metrics DataFrame for REPORTING (always unscaled)
+            reporting_results_df = benchmarker.get_results(min_max_scale=False)
+            # Remove the "Metric Type" row if present
+            if "Metric Type" in reporting_results_df.index:
+                reporting_metrics_df = reporting_results_df.drop(index="Metric Type")
+            else:
+                reporting_metrics_df = reporting_results_df
 
             # Collect best run data
             best_config = configs_df.loc[best_idx].copy()
@@ -353,8 +358,8 @@ class scIBAggregator:
             best_config.name = method  # Use method name as index
             best_configs.append(best_config)
 
-            # Extract metrics for best run and rename index to method
-            best_metric = metrics_df.loc[best_idx].copy()
+            # Extract metrics for best run using REPORTING metrics (always unscaled)
+            best_metric = reporting_metrics_df.loc[best_idx].copy()
             best_metric.name = method
             best_metrics.append(best_metric)
 
