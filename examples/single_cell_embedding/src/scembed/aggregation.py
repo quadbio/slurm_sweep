@@ -297,7 +297,7 @@ class scIBAggregator:
 
         return bm
 
-    def aggregate(self, sort_by: str = "Total") -> None:
+    def aggregate(self, sort_by: str = "Total", min_max_scale: bool = False) -> None:
         """
         Aggregate best run per method into unified results structure.
 
@@ -311,6 +311,8 @@ class scIBAggregator:
         sort_by
             Metric to sort by for selecting best run per method.
             Default is "Total" (overall scIB score).
+        min_max_scale
+            Whether to apply min-max scaling to each method's results before selecting the best run per method.
         """
         if not self.method_data:
             raise ValueError("No data available. Call fetch_runs() first.")
@@ -325,20 +327,12 @@ class scIBAggregator:
             other_logs_df = data["other_logs"]
 
             # Get metrics DataFrame from Benchmarker
-            try:
-                results_df = benchmarker.get_results()
-                # Remove the "Metric Type" row if present
-                if "Metric Type" in results_df.index:
-                    metrics_df = results_df.drop(index="Metric Type")
-                else:
-                    metrics_df = results_df
-            except (AttributeError, KeyError, ValueError):
-                # Fallback if benchmarker is actually a DataFrame (for failed Benchmarker creation)
-                if isinstance(benchmarker, pd.DataFrame):
-                    metrics_df = benchmarker.drop(columns=["method"])
-                else:
-                    logger.warning("Could not extract metrics for method '%s', skipping", method)
-                    continue
+            results_df = benchmarker.get_results(min_max_scale=min_max_scale)
+            # Remove the "Metric Type" row if present
+            if "Metric Type" in results_df.index:
+                metrics_df = results_df.drop(index="Metric Type")
+            else:
+                metrics_df = results_df
 
             if sort_by not in metrics_df.columns:
                 logger.warning("Metric '%s' not found for method '%s', skipping", sort_by, method)
