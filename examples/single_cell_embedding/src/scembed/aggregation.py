@@ -138,7 +138,6 @@ class scIBAggregator:
 
         # Extract scIB metrics and validate
         scib_metrics_data = []
-        config_data = []
         other_logs_data = []
 
         # Define aggregate metrics to exclude from individual metrics
@@ -168,14 +167,6 @@ class scIBAggregator:
             # Separate actual scIB metrics from aggregates
             actual_scib_metrics = {k: v for k, v in scib_data.items() if k not in aggregate_metrics}
 
-            # Filter config to only relevant parameters using original config dict
-            filtered_config = self._filter_config_for_method(config, method)
-            config_entry = {
-                "run_id": row["run_id"],
-                **filtered_config,
-            }
-            config_data.append(config_entry)
-
             # Build other logs entry (everything else from the run)
             other_logs_entry = {
                 "run_id": row["run_id"],
@@ -202,23 +193,29 @@ class scIBAggregator:
         self.n_runs_filtered = len(self.missing_config_runs) + len(self.missing_metrics_runs)
 
         # Create dataframes
-        if not config_data:
+        if not scib_metrics_data:
             logger.warning("No valid runs found with both config and scIB metrics")
             return
 
-        full_config_df = pd.DataFrame(config_data).set_index("run_id")
         full_metrics_df = pd.DataFrame(scib_metrics_data).set_index("run_id")
         full_other_logs_df = pd.DataFrame(other_logs_data).set_index("run_id")
 
-        # Organize by method and create Benchmarker objects
-        methods = full_config_df["method"].unique()
+        # Organize by method - create method-specific config DataFrames without NaN columns
+        methods = {row["config"]["method"] for _, row in valid_df.iterrows()}
         for method in methods:
-            method_mask = full_config_df["method"] == method
-            method_runs = full_config_df.index[method_mask]
+            # Get runs for this method
+            method_rows = [row for _, row in valid_df.iterrows() if row["config"]["method"] == method]
+            method_run_ids = [row["run_id"] for row in method_rows]
 
-            method_config_df = full_config_df.loc[method_runs]
-            method_metrics_df = full_metrics_df.loc[method_runs]
-            method_other_logs_df = full_other_logs_df.loc[method_runs]
+            # Create method-specific config DataFrame preserving original structure
+            method_configs = []
+            for row in method_rows:
+                config_entry = {"run_id": row["run_id"], **row["config"]}
+                method_configs.append(config_entry)
+
+            method_config_df = pd.DataFrame(method_configs).set_index("run_id")
+            method_metrics_df = full_metrics_df.loc[method_run_ids]
+            method_other_logs_df = full_other_logs_df.loc[method_run_ids]
 
             # Create Benchmarker object for this method's scIB metrics
             try:
@@ -235,31 +232,6 @@ class scIBAggregator:
             }
 
         logger.info("Available scIB metrics: %s", sorted(self.available_scib_metrics))
-
-    def _filter_config_for_method(self, config: dict, method: str) -> dict:
-        """Filter config to only relevant parameters for the given method.
-
-        Parameters
-        ----------
-        config
-            Full configuration dictionary from WandB run
-        method
-            Method name to filter parameters for
-
-        Returns
-        -------
-        dict
-            Filtered config containing only parameters used by this method
-        """
-        # Start with method name
-        filtered_config = {"method": method}
-
-        # Find all non-null parameters in the config (excluding 'method')
-        for key, value in config.items():
-            if key != "method" and value is not None:
-                filtered_config[key] = value
-
-        return filtered_config
 
     def _build_metric_type_mapping(self) -> dict[str, str]:
         """Build mapping from metric names to metric types using scIB dataclasses."""
@@ -308,13 +280,13 @@ class scIBAggregator:
         dummy_adata.obs["celltype"] = ["type1", "type2"] * (n_obs // 2)
 
         # Create Benchmarker instance
-        biocons = BioConservation(isolated_labels=False)  # isolated labels is computationally expensive
+
         bm = Benchmarker(
             adata=dummy_adata,
             batch_key="batch",
             label_key="celltype",
             embedding_obsm_keys=list(scib_plot.columns[:-1]),  # Exclude 'Metric Type' column
-            bio_conservation_metrics=biocons,
+            bio_conservation_metrics=BioConservation(),
             batch_correction_metrics=BatchCorrection(),
             n_jobs=-1,
         )
