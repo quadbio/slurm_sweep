@@ -201,10 +201,17 @@ class scIBAggregator:
         full_other_logs_df = pd.DataFrame(other_logs_data).set_index("run_id")
 
         # Organize by method - create method-specific config DataFrames without NaN columns
-        methods = {row["config"]["method"] for _, row in valid_df.iterrows()}
+        # Use runs that passed BOTH config and scIB metrics validation
+        valid_run_ids = set(full_metrics_df.index)  # These runs have both valid configs AND scIB metrics
+
+        methods = {row["config"]["method"] for _, row in valid_df.iterrows() if row["run_id"] in valid_run_ids}
         for method in methods:
-            # Get runs for this method
-            method_rows = [row for _, row in valid_df.iterrows() if row["config"]["method"] == method]
+            # Get runs for this method that have BOTH valid configs AND scIB metrics
+            method_rows = [
+                row
+                for _, row in valid_df.iterrows()
+                if row["config"]["method"] == method and row["run_id"] in valid_run_ids
+            ]
             method_run_ids = [row["run_id"] for row in method_rows]
 
             # Create method-specific config DataFrame preserving original structure
