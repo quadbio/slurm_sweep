@@ -164,11 +164,14 @@ class LIGERMethod(BaseIntegrationMethod):
         check_deps("pyliger")
         import pyliger
 
-        # Setup raw counts for LIGER (data already validated)
+        # Setup raw counts for LIGER
         self.adata.X = self.adata.layers[self.counts_layer].copy()
 
-        # Use HVG subset (we know it exists from validation)
-        adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        # Use HVG subset
+        if self.use_hvg:
+            adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        else:
+            adata_hvg = self.adata.copy()
 
         # Split by batch for LIGER
         batch_cats = adata_hvg.obs[self.batch_key].cat.categories
@@ -371,7 +374,6 @@ class ScanoramaMethod(BaseIntegrationMethod):
         batch_size: int | None = None,
         verbose: bool | int | None = None,
         dimred: int | None = None,
-        hvg: int | None = None,
         return_dense: bool | None = None,
         union: bool | None = None,
         seed: int | None = None,
@@ -401,8 +403,6 @@ class ScanoramaMethod(BaseIntegrationMethod):
             When True or not equal to 0, prints logging output.
         dimred
             Dimensionality of integrated embedding.
-        hvg
-            Use this number of top highly variable genes based on dispersion.
         return_dense
             Return numpy.ndarray matrices instead of scipy.sparse.csr_matrix.
         union
@@ -424,7 +424,6 @@ class ScanoramaMethod(BaseIntegrationMethod):
         self.batch_size = batch_size
         self.verbose = verbose
         self.dimred = dimred
-        self.hvg_param = hvg  # Renamed to avoid conflict with self.hvg_key
         self.return_dense = return_dense
         self.union = union
         self.seed = seed
@@ -441,8 +440,11 @@ class ScanoramaMethod(BaseIntegrationMethod):
         check_deps("scanorama")
         import scanorama
 
-        # Use HVG subset (we know it exists from validation)
-        adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        # Use HVG subset
+        if self.use_hvg:
+            adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        else:
+            adata_hvg = self.adata.copy()
 
         # Split by batch
         batch_cats = adata_hvg.obs[self.batch_key].cat.categories
@@ -458,7 +460,6 @@ class ScanoramaMethod(BaseIntegrationMethod):
                 "batch_size": self.batch_size,
                 "verbose": self.verbose,
                 "dimred": self.dimred,
-                "hvg": self.hvg_param,
                 "return_dense": self.return_dense,
                 "union": self.union,
                 "seed": self.seed,

@@ -27,6 +27,7 @@ class BaseIntegrationMethod(ABC):
         batch_key: str = "batch",
         cell_type_key: str = "cell_type",
         hvg_key: str = "highly_variable",
+        use_hvg: bool = True,
         counts_layer: str = "counts",
         spatial_key: str = "spatial",
         pca_key: str = "X_pca",
@@ -51,6 +52,8 @@ class BaseIntegrationMethod(ABC):
             Key in adata.obs for cell type information.
         hvg_key
             Key in adata.var for highly variable genes.
+        use_hvg
+            Whether to use highly variable genes for integration.
         counts_layer
             Key in adata.layers for count data.
         spatial_key
@@ -73,6 +76,7 @@ class BaseIntegrationMethod(ABC):
         self.batch_key = batch_key
         self.cell_type_key = cell_type_key
         self.hvg_key = hvg_key
+        self.use_hvg = use_hvg
         self.counts_layer = counts_layer
         self.spatial_key = spatial_key
         self.pca_key = pca_key
@@ -135,9 +139,9 @@ class BaseIntegrationMethod(ABC):
                 logger.warning("Counts layer '%s' contains non-integer values", self.counts_layer)
 
         # Check for highly variable genes (most methods will need this)
-        if self.hvg_key not in adata.var.columns:
-            logger.warning("HVG key '%s' not found in adata.var. Initializing as all genes HVG.", self.hvg_key)
-            adata.var[self.hvg_key] = True
+        if self.hvg_key not in adata.var.columns and self.use_hvg:
+            logger.warning("HVG key '%s' not found in adata.var. Using all genes.", self.hvg_key)
+            self.use_hvg = False
 
         # Check for PCA embedding (some methods will need this)
         if self.pca_key not in adata.obsm:
@@ -393,8 +397,11 @@ class BaseIntegrationMethod(ABC):
         status = "fitted" if self.is_fitted else "not fitted"
 
         # Count HVGs
-        n_hvgs = self.adata.var[self.hvg_key].sum()
-        hvg_info = f"{n_hvgs:,} HVGs" if n_hvgs > 0 else "no HVGs"
+        if self.use_hvg:
+            n_hvgs = self.adata.var[self.hvg_key].sum()
+            hvg_info = f"{n_hvgs:,} HVGs"
+        else:
+            hvg_info = "not using HVGs"
 
         data_info = f"{self.adata.n_obs:,} cells × {self.adata.n_vars:,} genes ({hvg_info})"
         return f"{self.__class__.__name__}({params_str}) [{status}, {data_info}]"

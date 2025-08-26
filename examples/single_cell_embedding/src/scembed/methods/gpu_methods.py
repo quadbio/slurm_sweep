@@ -122,7 +122,10 @@ class scVIMethod(BaseIntegrationMethod):
         import scvi
 
         # Subset to highly variable genes
-        adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        if self.use_hvg:
+            adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        else:
+            adata_hvg = self.adata.copy()
 
         # Setup scVI with counts layer
         scvi.model.SCVI.setup_anndata(adata_hvg, layer=self.counts_layer, batch_key=self.batch_key)
@@ -234,6 +237,7 @@ class scANVIMethod(BaseIntegrationMethod):
             batch_key=self.batch_key,
             cell_type_key=self.cell_type_key,
             hvg_key=self.hvg_key,
+            use_hvg=self.use_hvg,
             counts_layer=self.counts_layer,
             **self.scvi_params,
         )
@@ -397,7 +401,10 @@ class scPoliMethod(BaseIntegrationMethod):
         from scarches.models.scpoli import scPoli
 
         # Subset to highly variable genes
-        adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        if self.use_hvg:
+            adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        else:
+            adata_hvg = self.adata.copy()
 
         # Early stopping configuration
         early_stopping_kwargs = {
@@ -634,8 +641,13 @@ class ResolVIMethod(BaseIntegrationMethod):
         # Setup ResolVI data registration
         # ResolVI setup_anndata will automatically compute spatial neighbors if missing
 
+        if self.use_hvg:
+            adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        else:
+            adata_hvg = self.adata.copy()
+
         scvi.external.RESOLVI.setup_anndata(
-            self.adata,
+            adata_hvg,
             layer=self.counts_layer,
             batch_key=self.batch_key,
             labels_key=self.cell_type_key if self.semisupervised else None,
@@ -663,7 +675,7 @@ class ResolVIMethod(BaseIntegrationMethod):
 
         # Create ResolVI model
         self.model = scvi.external.RESOLVI(
-            self.adata,
+            adata_hvg,
             **model_params,
         )
         logger.info("Set up ResolVI model: %s", self.model)
@@ -826,6 +838,7 @@ class scVIVAMethod(BaseIntegrationMethod):
                     "batch_key": self.batch_key,
                     "cell_type_key": self.cell_type_key,
                     "hvg_key": self.hvg_key,
+                    "use_hvg": self.use_hvg,
                     "counts_layer": self.counts_layer,
                 }
             )
@@ -842,6 +855,7 @@ class scVIVAMethod(BaseIntegrationMethod):
                     "batch_key": self.batch_key,
                     "cell_type_key": self.cell_type_key,
                     "hvg_key": self.hvg_key,
+                    "use_hvg": self.use_hvg,
                     "counts_layer": self.counts_layer,
                     "unlabeled_category": self.unlabeled_category,
                     "scvi_params": self.scvi_params,
@@ -856,9 +870,14 @@ class scVIVAMethod(BaseIntegrationMethod):
         # Step 2: Run scVIVA preprocessing to compute spatial neighborhoods
         logger.info("Running scVIVA preprocessing")
 
+        if self.use_hvg:
+            adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        else:
+            adata_hvg = self.adata.copy()
+
         # Prepare preprocessing parameters, filtering out None values for k_nn only
         preprocessing_params = {
-            "adata": self.adata,
+            "adata": adata_hvg,
             "sample_key": self.batch_key,
             "labels_key": self.cell_type_key,
             "cell_coordinates_key": self.spatial_key,
@@ -874,7 +893,7 @@ class scVIVAMethod(BaseIntegrationMethod):
 
         # Step 3: Setup scVIVA data registration
         scvi.external.SCVIVA.setup_anndata(
-            self.adata,
+            adata_hvg,
             layer=self.counts_layer,
             batch_key=self.batch_key,
             sample_key=self.batch_key,
@@ -896,7 +915,7 @@ class scVIVAMethod(BaseIntegrationMethod):
             }
         )
 
-        self.model = scvi.external.SCVIVA(self.adata, **model_params)
+        self.model = scvi.external.SCVIVA(adata_hvg, **model_params)
         logger.info("Set up scVIVA model: %s", self.model)
 
         # Prepare training parameters, filtering out None values
