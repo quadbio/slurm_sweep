@@ -566,6 +566,7 @@ class ResolVIMethod(BaseIntegrationMethod):
         n_epochs_kl_warmup: int | None = None,
         batch_size: int | None = None,
         accelerator: str | None = None,
+        n_neighbors: int = 10,
         **kwargs,
     ):
         """
@@ -621,6 +622,8 @@ class ResolVIMethod(BaseIntegrationMethod):
             Batch size for training.
         accelerator
             Accelerator type for training.
+        n_neighbors
+            Number of neighbors for spatial graph.
         """
         super().__init__(
             adata,
@@ -647,6 +650,7 @@ class ResolVIMethod(BaseIntegrationMethod):
             n_epochs_kl_warmup=n_epochs_kl_warmup,
             batch_size=batch_size,
             accelerator=accelerator,
+            n_neighbors=n_neighbors,
             **kwargs,
         )
 
@@ -673,6 +677,7 @@ class ResolVIMethod(BaseIntegrationMethod):
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
         self.batch_size = batch_size
         self.accelerator = accelerator
+        self.n_neighbors = n_neighbors
         self.model = None
 
     def fit(self):
@@ -698,7 +703,7 @@ class ResolVIMethod(BaseIntegrationMethod):
             layer=self.counts_layer,
             batch_key=self.batch_key,
             labels_key=self.cell_type_key if self.semisupervised else None,
-            prepare_data_kwargs={"spatial_rep": self.spatial_key},
+            prepare_data_kwargs={"spatial_rep": self.spatial_key, "n_neighbors": self.n_neighbors},
             unlabeled_category=self.unlabeled_category,
         )
 
