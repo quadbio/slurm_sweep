@@ -574,7 +574,6 @@ class ResolVIMethod(BaseIntegrationMethod):
         mixture_k: int | None = None,
         downsample_counts: bool | None = None,
         max_epochs: int | None = None,
-        early_stopping: bool | None = None,
         lr: float | None = None,
         lr_extra: float | None = None,
         weight_decay: float | None = None,
@@ -621,8 +620,6 @@ class ResolVIMethod(BaseIntegrationMethod):
             Whether to downsample counts.
         max_epochs
             Maximum epochs for ResolVI training.
-        early_stopping
-            Whether to use early stopping during training.
         lr
             Learning rate for optimization.
         lr_extra
@@ -658,7 +655,6 @@ class ResolVIMethod(BaseIntegrationMethod):
             mixture_k=mixture_k,
             downsample_counts=downsample_counts,
             max_epochs=max_epochs,
-            early_stopping=early_stopping,
             lr=lr,
             lr_extra=lr_extra,
             weight_decay=weight_decay,
@@ -685,7 +681,6 @@ class ResolVIMethod(BaseIntegrationMethod):
         self.mixture_k = mixture_k
         self.downsample_counts = downsample_counts
         self.max_epochs = max_epochs
-        self.early_stopping = early_stopping
         self.lr = lr
         self.lr_extra = lr_extra
         self.weight_decay = weight_decay
@@ -753,7 +748,6 @@ class ResolVIMethod(BaseIntegrationMethod):
         train_params = self._filter_none_params(
             {
                 "max_epochs": self.max_epochs,
-                "early_stopping": self.early_stopping,
                 "lr": self.lr,
                 "lr_extra": self.lr_extra,
                 "weight_decay": self.weight_decay,
