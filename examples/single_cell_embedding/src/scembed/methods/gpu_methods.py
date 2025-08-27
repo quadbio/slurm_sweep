@@ -75,6 +75,7 @@ class scVIMethod(BaseIntegrationMethod):
         dropout_rate: float | None = None,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] | None = None,
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] | None = None,
+        lr: float | None = None,
         **kwargs,
     ):
         """
@@ -108,6 +109,8 @@ class scVIMethod(BaseIntegrationMethod):
             Specifies where to use BatchNorm1d in the model. See the scVI docs.
         use_layer_norm
             Specifies where to use LayerNorm in the model. See the scVI docs.
+        lr
+            Learning rate for the optimizer.
         """
         super().__init__(
             adata,
@@ -122,6 +125,7 @@ class scVIMethod(BaseIntegrationMethod):
             dropout_rate=dropout_rate,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
+            lr=lr,
             **kwargs,
         )
         self.n_latent = n_latent
@@ -135,6 +139,7 @@ class scVIMethod(BaseIntegrationMethod):
         self.dropout_rate = dropout_rate
         self.use_batch_norm = use_batch_norm
         self.use_layer_norm = use_layer_norm
+        self.lr = lr
         self.model = None
 
     def fit(self):
@@ -183,6 +188,10 @@ class scVIMethod(BaseIntegrationMethod):
         if wandb_logger is not None:
             train_params["logger"] = wandb_logger
 
+        # Handle learning rate via plan_kwargs if specified
+        if self.lr is not None:
+            train_params["plan_kwargs"] = {"lr": self.lr}
+
         self.model.train(**train_params)
         self.is_fitted = True
 
@@ -217,6 +226,7 @@ class scANVIMethod(BaseIntegrationMethod):
         accelerator: str | None = None,
         linear_classifier: bool | None = None,
         batch_size: int | None = None,
+        lr: float | None = None,
         **kwargs,
     ):
         """
@@ -240,6 +250,8 @@ class scANVIMethod(BaseIntegrationMethod):
             Whether to use a linear classifier for scANVI.
         batch_size
             Batch size for training.
+        lr
+            Learning rate for the optimizer.
         """
         super().__init__(
             adata,
@@ -249,6 +261,7 @@ class scANVIMethod(BaseIntegrationMethod):
             accelerator=accelerator,
             linear_classifier=linear_classifier,
             batch_size=batch_size,
+            lr=lr,
             **kwargs,
         )
         self.scvi_params = scvi_params or {}
@@ -257,6 +270,7 @@ class scANVIMethod(BaseIntegrationMethod):
         self.accelerator = accelerator
         self.linear_classifier = linear_classifier
         self.batch_size = batch_size
+        self.lr = lr
         self.scvi_model = None
         self.model = None
 
@@ -305,6 +319,9 @@ class scANVIMethod(BaseIntegrationMethod):
         )
         if wandb_logger is not None:
             train_params["logger"] = wandb_logger
+
+        if self.lr is not None:
+            train_params["plan_kwargs"] = {"lr": self.lr}
 
         self.model.train(**train_params)
         self.is_fitted = True
