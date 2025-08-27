@@ -3,6 +3,7 @@
 import os
 import tempfile
 from pathlib import Path
+from typing import Literal
 
 from scembed.check import check_deps
 from scembed.utils import _get_wandb_logger
@@ -72,6 +73,8 @@ class scVIMethod(BaseIntegrationMethod):
         accelerator: str | None = None,
         batch_size: int | None = None,
         dropout_rate: float | None = None,
+        use_batch_norm: Literal["encoder", "decoder", "none", "both"] | None = None,
+        use_layer_norm: Literal["encoder", "decoder", "none", "both"] | None = None,
         **kwargs,
     ):
         """
@@ -101,6 +104,10 @@ class scVIMethod(BaseIntegrationMethod):
             Batch size for training.
         dropout_rate
             Dropout rate for training.
+        use_batch_norm
+            Specifies where to use BatchNorm1d in the model. See the scVI docs.
+        use_layer_norm
+            Specifies where to use LayerNorm in the model. See the scVI docs.
         """
         super().__init__(
             adata,
@@ -113,6 +120,8 @@ class scVIMethod(BaseIntegrationMethod):
             accelerator=accelerator,
             batch_size=batch_size,
             dropout_rate=dropout_rate,
+            use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
             **kwargs,
         )
         self.n_latent = n_latent
@@ -124,6 +133,8 @@ class scVIMethod(BaseIntegrationMethod):
         self.accelerator = accelerator
         self.batch_size = batch_size
         self.dropout_rate = dropout_rate
+        self.use_batch_norm = use_batch_norm
+        self.use_layer_norm = use_layer_norm
         self.model = None
 
     def fit(self):
@@ -148,6 +159,8 @@ class scVIMethod(BaseIntegrationMethod):
                 "n_hidden": self.n_hidden,
                 "gene_likelihood": self.gene_likelihood,
                 "dropout_rate": self.dropout_rate,
+                "use_batch_norm": self.use_batch_norm,
+                "use_layer_norm": self.use_layer_norm,
             }
         )
 
