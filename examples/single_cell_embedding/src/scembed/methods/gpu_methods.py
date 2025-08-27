@@ -70,6 +70,7 @@ class scVIMethod(BaseIntegrationMethod):
         max_epochs: int | None = None,
         early_stopping: bool | None = None,
         accelerator: str | None = None,
+        batch_size: int | None = None,
         **kwargs,
     ):
         """
@@ -95,6 +96,8 @@ class scVIMethod(BaseIntegrationMethod):
             Whether to use early stopping during training.
         accelerator
             Accelerator type for training.
+        batch_size
+            Batch size for training.
         """
         super().__init__(
             adata,
@@ -105,6 +108,7 @@ class scVIMethod(BaseIntegrationMethod):
             max_epochs=max_epochs,
             early_stopping=early_stopping,
             accelerator=accelerator,
+            batch_size=batch_size,
             **kwargs,
         )
         self.n_latent = n_latent
@@ -114,6 +118,7 @@ class scVIMethod(BaseIntegrationMethod):
         self.max_epochs = max_epochs
         self.early_stopping = early_stopping
         self.accelerator = accelerator
+        self.batch_size = batch_size
         self.model = None
 
     def fit(self):
@@ -153,6 +158,7 @@ class scVIMethod(BaseIntegrationMethod):
                 "max_epochs": self.max_epochs,
                 "early_stopping": self.early_stopping,
                 "accelerator": self.accelerator,
+                "batch_size": self.batch_size,
             }
         )
         if wandb_logger is not None:
@@ -191,6 +197,7 @@ class scANVIMethod(BaseIntegrationMethod):
         early_stopping: bool | None = None,
         accelerator: str | None = None,
         linear_classifier: bool | None = None,
+        batch_size: int | None = None,
         **kwargs,
     ):
         """
@@ -212,6 +219,8 @@ class scANVIMethod(BaseIntegrationMethod):
             Accelerator type for training.
         linear_classifier
             Whether to use a linear classifier for scANVI.
+        batch_size
+            Batch size for training.
         """
         super().__init__(
             adata,
@@ -220,6 +229,7 @@ class scANVIMethod(BaseIntegrationMethod):
             early_stopping=early_stopping,
             accelerator=accelerator,
             linear_classifier=linear_classifier,
+            batch_size=batch_size,
             **kwargs,
         )
         self.scvi_params = scvi_params or {}
@@ -227,6 +237,7 @@ class scANVIMethod(BaseIntegrationMethod):
         self.early_stopping = early_stopping
         self.accelerator = accelerator
         self.linear_classifier = linear_classifier
+        self.batch_size = batch_size
         self.scvi_model = None
         self.model = None
 
@@ -270,6 +281,7 @@ class scANVIMethod(BaseIntegrationMethod):
                 "max_epochs": self.max_epochs,
                 "early_stopping": self.early_stopping,
                 "accelerator": self.accelerator,
+                "batch_size": self.batch_size,
             }
         )
         if wandb_logger is not None:
