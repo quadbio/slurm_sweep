@@ -531,7 +531,10 @@ class scPoliMethod(BaseIntegrationMethod):
             raise ValueError("Model must be fitted before transform")
 
         # Subset to highly variable genes (same as used during training)
-        adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        if self.use_hvg:
+            adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        else:
+            adata_hvg = self.adata.copy()
 
         # Get latent representation
         latent = self.model.get_latent(adata_hvg, mean=True)
