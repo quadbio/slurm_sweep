@@ -71,6 +71,7 @@ class scVIMethod(BaseIntegrationMethod):
         early_stopping: bool | None = None,
         accelerator: str | None = None,
         batch_size: int | None = None,
+        dropout_rate: float | None = None,
         **kwargs,
     ):
         """
@@ -98,6 +99,8 @@ class scVIMethod(BaseIntegrationMethod):
             Accelerator type for training.
         batch_size
             Batch size for training.
+        dropout_rate
+            Dropout rate for training.
         """
         super().__init__(
             adata,
@@ -109,6 +112,7 @@ class scVIMethod(BaseIntegrationMethod):
             early_stopping=early_stopping,
             accelerator=accelerator,
             batch_size=batch_size,
+            dropout_rate=dropout_rate,
             **kwargs,
         )
         self.n_latent = n_latent
@@ -119,6 +123,7 @@ class scVIMethod(BaseIntegrationMethod):
         self.early_stopping = early_stopping
         self.accelerator = accelerator
         self.batch_size = batch_size
+        self.dropout_rate = dropout_rate
         self.model = None
 
     def fit(self):
@@ -142,6 +147,7 @@ class scVIMethod(BaseIntegrationMethod):
                 "n_layers": self.n_layers,
                 "n_hidden": self.n_hidden,
                 "gene_likelihood": self.gene_likelihood,
+                "dropout_rate": self.dropout_rate,
             }
         )
 
