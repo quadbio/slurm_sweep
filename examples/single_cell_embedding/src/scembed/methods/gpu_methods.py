@@ -190,6 +190,7 @@ class scANVIMethod(BaseIntegrationMethod):
         max_epochs: int | None = None,
         early_stopping: bool | None = None,
         accelerator: str | None = None,
+        linear_classifier: bool | None = None,
         **kwargs,
     ):
         """
@@ -209,6 +210,8 @@ class scANVIMethod(BaseIntegrationMethod):
             Whether to use early stopping during training.
         accelerator
             Accelerator type for training.
+        linear_classifier
+            Whether to use a linear classifier for scANVI.
         """
         super().__init__(
             adata,
@@ -216,12 +219,14 @@ class scANVIMethod(BaseIntegrationMethod):
             max_epochs=max_epochs,
             early_stopping=early_stopping,
             accelerator=accelerator,
+            linear_classifier=linear_classifier,
             **kwargs,
         )
         self.scvi_params = scvi_params or {}
         self.max_epochs = max_epochs
         self.early_stopping = early_stopping
         self.accelerator = accelerator
+        self.linear_classifier = linear_classifier
         self.scvi_model = None
         self.model = None
 
@@ -250,10 +255,9 @@ class scANVIMethod(BaseIntegrationMethod):
 
         # Step 2: Create scANVI from scVI
         logger.info("Creating scANVI from pretrained scVI model")
+        scanvi_params = self._filter_none_params({"linear_classifier": self.linear_classifier})
         self.model = scvi.model.SCANVI.from_scvi_model(
-            self.scvi_model,
-            labels_key=self.cell_type_key,
-            unlabeled_category=self.unlabeled_category,
+            self.scvi_model, labels_key=self.cell_type_key, unlabeled_category=self.unlabeled_category, **scanvi_params
         )
         logger.info("Set up scANVI model: %s", self.model)
 
