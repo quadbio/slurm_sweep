@@ -357,6 +357,7 @@ class scPoliMethod(BaseIntegrationMethod):
         recon_loss: str | None = None,
         eta: float | None = None,
         alpha_epoch_anneal: int | None = None,
+        unlabeled_prototype_training: bool | None = None,
         **kwargs,
     ):
         """
@@ -398,6 +399,8 @@ class scPoliMethod(BaseIntegrationMethod):
             Eta parameter for training.
         alpha_epoch_anneal
             Number of epochs to linearly anneal alpha.
+        unlabeled_prototype_training
+            Whether to use unlabeled prototype training.
         """
         super().__init__(
             adata,
@@ -416,6 +419,7 @@ class scPoliMethod(BaseIntegrationMethod):
             recon_loss=recon_loss,
             eta=eta,
             alpha_epoch_anneal=alpha_epoch_anneal,
+            unlabeled_prototype_training=unlabeled_prototype_training,
             **kwargs,
         )
         self.embedding_dims = embedding_dims
@@ -433,6 +437,7 @@ class scPoliMethod(BaseIntegrationMethod):
         self.recon_loss = recon_loss
         self.eta = eta
         self.alpha_epoch_anneal = alpha_epoch_anneal
+        self.unlabeled_prototype_training = unlabeled_prototype_training
         self.model = None
 
     def fit(self):
@@ -493,6 +498,7 @@ class scPoliMethod(BaseIntegrationMethod):
                 "pretraining_epochs": self.pretraining_epochs,
                 "eta": self.eta,
                 "alpha_epoch_anneal": self.alpha_epoch_anneal,
+                "unlabeled_prototype_training": self.unlabeled_prototype_training,
             }
         )
 
