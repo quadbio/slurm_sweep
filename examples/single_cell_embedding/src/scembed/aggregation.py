@@ -415,25 +415,58 @@ class scIBAggregator:
 
         logger.info("Aggregated best runs for %d methods using metric '%s'", len(best_configs), sort_by)
 
-    def get_method_runs(self, method: str) -> dict[str, pd.DataFrame | Benchmarker]:
+    def get_method_runs(
+        self, method: str, sort_by: str = "Total", min_max_scale: bool = True
+    ) -> dict[str, pd.DataFrame | Benchmarker]:
         """
-        Get all data for a specific method.
+        Get all data for a specific method, optionally sorted by a metric.
 
         Parameters
         ----------
         method
             Method name to retrieve data for.
+        sort_by
+            Metric name to sort runs by. Default is "Total".
+            Must be a valid metric name (e.g., 'Total', 'Silhouette label', etc.).
+        min_max_scale
+            Whether to use min-max scaled metrics for sorting. Default is True.
+            If True, uses scaled metrics for fair comparison across different metric ranges.
+            If False, uses raw metrics for sorting.
 
         Returns
         -------
         dict
-            Dictionary with 'configs' (DataFrame), 'scib_benchmarker' (Benchmarker or DataFrame),
-            and 'other_logs' (DataFrame).
+            Dictionary with 'configs' (DataFrame), 'scib_benchmarker' (Benchmarker),
+            and 'other_logs' (DataFrame). The 'configs' and 'other_logs' DataFrames
+            are sorted by the specified metric in descending order (best runs first).
         """
         if method not in self.method_data:
             raise ValueError(f"Method '{method}' not found. Available methods: {list(self.method_data.keys())}")
 
-        return self.method_data[method]
+        method_data = self.method_data[method].copy()
+
+        # Get benchmarker and extract results for sorting
+        benchmarker = method_data["scib_benchmarker"]
+
+        # Get results from Benchmarker
+        results_df = benchmarker.get_results(min_max_scale=min_max_scale)
+
+        # Remove 'Metric Type' row if present
+        if "Metric Type" in results_df.index:
+            results_df = results_df.drop(index="Metric Type")
+
+        if sort_by not in results_df.columns:
+            available_metrics = list(results_df.columns)
+            raise ValueError(f"Metric '{sort_by}' not found. Available metrics: {available_metrics}")
+
+        # Sort by the specified metric (descending - best first)
+        sorted_order = results_df[sort_by].sort_values(ascending=False).index
+
+        # Apply sorting to configs and other_logs DataFrames
+        method_data["configs"] = method_data["configs"].loc[sorted_order]
+        method_data["other_logs"] = method_data["other_logs"].loc[sorted_order]
+
+        return method_data
 
     def get_models_and_embeddings(
         self,
