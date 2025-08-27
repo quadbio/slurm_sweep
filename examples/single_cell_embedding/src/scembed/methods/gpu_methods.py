@@ -356,6 +356,7 @@ class scPoliMethod(BaseIntegrationMethod):
         pretraining_epochs: int | None = None,
         recon_loss: str | None = None,
         eta: float | None = None,
+        alpha_epoch_anneal: int | None = None,
         **kwargs,
     ):
         """
@@ -395,6 +396,8 @@ class scPoliMethod(BaseIntegrationMethod):
             Reconstruction loss type.
         eta
             Eta parameter for training.
+        alpha_epoch_anneal
+            Number of epochs to linearly anneal alpha.
         """
         super().__init__(
             adata,
@@ -412,6 +415,7 @@ class scPoliMethod(BaseIntegrationMethod):
             pretraining_epochs=pretraining_epochs,
             recon_loss=recon_loss,
             eta=eta,
+            alpha_epoch_anneal=alpha_epoch_anneal,
             **kwargs,
         )
         self.embedding_dims = embedding_dims
@@ -428,6 +432,7 @@ class scPoliMethod(BaseIntegrationMethod):
         self.pretraining_epochs = pretraining_epochs
         self.recon_loss = recon_loss
         self.eta = eta
+        self.alpha_epoch_anneal = alpha_epoch_anneal
         self.model = None
 
     def fit(self):
@@ -487,6 +492,7 @@ class scPoliMethod(BaseIntegrationMethod):
                 "n_epochs": self.n_epochs,
                 "pretraining_epochs": self.pretraining_epochs,
                 "eta": self.eta,
+                "alpha_epoch_anneal": self.alpha_epoch_anneal,
             }
         )
 
