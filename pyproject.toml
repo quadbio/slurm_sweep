@@ -35,10 +35,14 @@ optional-dependencies.dev = [
   "twine>=4.0.2",
 ]
 
+optional-dependencies.examples = [
+  "scembed",
+]
 optional-dependencies.test = [
   "coverage",
   "pytest",
 ]
+
 # https://docs.pypi.org/project_metadata/#project-urls
 urls.Documentation = "https://github.com/quadbio/slurm_sweep"
 urls.Homepage = "https://github.com/quadbio/slurm_sweep"
