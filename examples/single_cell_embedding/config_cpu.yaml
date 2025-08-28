@@ -1,5 +1,5 @@
 general:
-  project_name: scembed_test_2
+  project_name: scembed_test_3
   mamba_env: slurm_sweep
   entity: spatial_vi
   modules: stack eth_proxy
@@ -21,7 +21,7 @@ wandb:
   parameters:
     config:
       values: [
-        # PCA - single run with embedding_key parameter
+        # PCA (using the pre-computed method implementation)
         {"method": "precomputed_pca", "embedding_key": "X_pca"},
 
         # LIGER
