@@ -2,10 +2,15 @@
 
 import scanpy as sc
 import wandb
-from scembed import get_method_instance
-from scembed.evaluation import IntegrationEvaluator
 
 from slurm_sweep._logging import logger
+
+try:
+    from scembed import get_method_instance
+    from scembed.evaluation import IntegrationEvaluator
+except (ImportError, ModuleNotFoundError):
+    logger.info("Please install the scembed package via `pip install scembed`")
+
 
 sc.set_figure_params(frameon=False, fontsize=12)
 

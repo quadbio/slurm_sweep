@@ -42,6 +42,7 @@ def configure_sweep(
         slurm_parameters=slurm_config,
         mamba_env=general_config.get("mamba_env"),
         modules=general_config.get("modules"),
+        count=general_config.get("count"),
         job_file=output,
     )
 
