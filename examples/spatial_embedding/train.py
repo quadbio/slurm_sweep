@@ -28,7 +28,7 @@ def main():
     wandb.init()
 
     # Extract method and parameters from config
-    config = wandb.config.config
+    config = wandb.config
     method_name = config["method"]
 
     # Extract method-specific parameters (everything except 'method')
@@ -88,7 +88,7 @@ def main():
     wandb.summary["scib"] = evaluator.scib_metrics.loc[method.embedding_key].to_dict()
 
     # Generate UMAP plots
-    evaluator.compute_and_show_embeddings(wspace=0.7)
+    evaluator.compute_and_show_embeddings(wspace=1.0)
     wandb.log({"umap_evaluation": wandb.Image(str(evaluator.figures_dir / "umap_evaluation.png"))})
 
     logger.info("✓ Run completed successfully")

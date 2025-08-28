@@ -1,38 +1,29 @@
 general:
-  project_name: scembed_test_3
-  mamba_env: slurm_sweep
+  project_name: scembed_test_spatial_rc1
+  mamba_env: scembed
   entity: spatial_vi
   modules: stack eth_proxy
+  count: 1
 
 slurm:
   time: "01:00:00"
   mem_per_cpu: "32G"
-  job_name: scembed_cpu
-  output: slurm_logs/cpu_%A_%a.out
-  array: "0-8"
+  job_name: scembed_scanvi
+  output: slurm_logs/scanvi_%A_%a.out
+  array: "0-3"
+  gpus: rtx_4090:1
 
 wandb:
   program: train.py
   method: grid
-  name: cpu_methods
+  name: scanvi
   metric:
     goal: maximize
     name: scib_total_score
   parameters:
-    config:
-      values: [
-        # PCA (using the pre-computed method implementation)
-        {"method": "precomputed_pca", "embedding_key": "X_pca"},
-
-        # LIGER
-        {"method": "liger", "k": 20, "value_lambda": 1.0},
-        {"method": "liger", "k": 20, "value_lambda": 5.0},
-        {"method": "liger", "k": 30, "value_lambda": 1.0},
-        {"method": "liger", "k": 30, "value_lambda": 5.0},
-
-        # Scanorama
-        {"method": "scanorama", "sigma": 15.0, "alpha": 0.1},
-        {"method": "scanorama", "sigma": 15.0, "alpha": 0.3},
-        {"method": "scanorama", "sigma": 30.0, "alpha": 0.1},
-        {"method": "scanorama", "sigma": 30.0, "alpha": 0.3}
-      ]
+    method:
+      value: scanvi
+    n_samples_per_label:
+      values: [50, 100]
+    max_epochs:
+      values: [30, 50]

@@ -11,6 +11,7 @@ slurm:
   job_name: scembed_resolvi
   output: slurm_logs/resolvi_%A_%a.out
   array: "0-3"
+  gpus: rtx_4090:1
 
 wandb:
   program: train.py
