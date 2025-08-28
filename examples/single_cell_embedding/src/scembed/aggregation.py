@@ -138,7 +138,6 @@ class scIBAggregator:
 
         # Extract scIB metrics and validate
         scib_metrics_data = []
-        config_data = []
         other_logs_data = []
 
         # Define aggregate metrics to exclude from individual metrics
@@ -168,14 +167,6 @@ class scIBAggregator:
             # Separate actual scIB metrics from aggregates
             actual_scib_metrics = {k: v for k, v in scib_data.items() if k not in aggregate_metrics}
 
-            # Filter config to only relevant parameters using original config dict
-            filtered_config = self._filter_config_for_method(config, method)
-            config_entry = {
-                "run_id": row["run_id"],
-                **filtered_config,
-            }
-            config_data.append(config_entry)
-
             # Build other logs entry (everything else from the run)
             other_logs_entry = {
                 "run_id": row["run_id"],
@@ -202,23 +193,36 @@ class scIBAggregator:
         self.n_runs_filtered = len(self.missing_config_runs) + len(self.missing_metrics_runs)
 
         # Create dataframes
-        if not config_data:
+        if not scib_metrics_data:
             logger.warning("No valid runs found with both config and scIB metrics")
             return
 
-        full_config_df = pd.DataFrame(config_data).set_index("run_id")
         full_metrics_df = pd.DataFrame(scib_metrics_data).set_index("run_id")
         full_other_logs_df = pd.DataFrame(other_logs_data).set_index("run_id")
 
-        # Organize by method and create Benchmarker objects
-        methods = full_config_df["method"].unique()
-        for method in methods:
-            method_mask = full_config_df["method"] == method
-            method_runs = full_config_df.index[method_mask]
+        # Organize by method - create method-specific config DataFrames without NaN columns
+        # Use runs that passed BOTH config and scIB metrics validation
+        valid_run_ids = set(full_metrics_df.index)  # These runs have both valid configs AND scIB metrics
 
-            method_config_df = full_config_df.loc[method_runs]
-            method_metrics_df = full_metrics_df.loc[method_runs]
-            method_other_logs_df = full_other_logs_df.loc[method_runs]
+        methods = {row["config"]["method"] for _, row in valid_df.iterrows() if row["run_id"] in valid_run_ids}
+        for method in methods:
+            # Get runs for this method that have BOTH valid configs AND scIB metrics
+            method_rows = [
+                row
+                for _, row in valid_df.iterrows()
+                if row["config"]["method"] == method and row["run_id"] in valid_run_ids
+            ]
+            method_run_ids = [row["run_id"] for row in method_rows]
+
+            # Create method-specific config DataFrame preserving original structure
+            method_configs = []
+            for row in method_rows:
+                config_entry = {"run_id": row["run_id"], **row["config"]}
+                method_configs.append(config_entry)
+
+            method_config_df = pd.DataFrame(method_configs).set_index("run_id")
+            method_metrics_df = full_metrics_df.loc[method_run_ids]
+            method_other_logs_df = full_other_logs_df.loc[method_run_ids]
 
             # Create Benchmarker object for this method's scIB metrics
             try:
@@ -235,31 +239,6 @@ class scIBAggregator:
             }
 
         logger.info("Available scIB metrics: %s", sorted(self.available_scib_metrics))
-
-    def _filter_config_for_method(self, config: dict, method: str) -> dict:
-        """Filter config to only relevant parameters for the given method.
-
-        Parameters
-        ----------
-        config
-            Full configuration dictionary from WandB run
-        method
-            Method name to filter parameters for
-
-        Returns
-        -------
-        dict
-            Filtered config containing only parameters used by this method
-        """
-        # Start with method name
-        filtered_config = {"method": method}
-
-        # Find all non-null parameters in the config (excluding 'method')
-        for key, value in config.items():
-            if key != "method" and value is not None:
-                filtered_config[key] = value
-
-        return filtered_config
 
     def _build_metric_type_mapping(self) -> dict[str, str]:
         """Build mapping from metric names to metric types using scIB dataclasses."""
@@ -308,13 +287,13 @@ class scIBAggregator:
         dummy_adata.obs["celltype"] = ["type1", "type2"] * (n_obs // 2)
 
         # Create Benchmarker instance
-        biocons = BioConservation(isolated_labels=False)  # isolated labels is computationally expensive
+
         bm = Benchmarker(
             adata=dummy_adata,
             batch_key="batch",
             label_key="celltype",
             embedding_obsm_keys=list(scib_plot.columns[:-1]),  # Exclude 'Metric Type' column
-            bio_conservation_metrics=biocons,
+            bio_conservation_metrics=BioConservation(),
             batch_correction_metrics=BatchCorrection(),
             n_jobs=-1,
         )
@@ -325,7 +304,7 @@ class scIBAggregator:
 
         return bm
 
-    def aggregate(self, sort_by: str = "Total") -> None:
+    def aggregate(self, sort_by: str = "Total", min_max_scale_for_selection: bool = True) -> None:
         """
         Aggregate best run per method into unified results structure.
 
@@ -339,6 +318,11 @@ class scIBAggregator:
         sort_by
             Metric to sort by for selecting best run per method.
             Default is "Total" (overall scIB score).
+        min_max_scale_for_selection
+            Whether to use min-max scaled metrics for selecting the best run per method.
+            If True, uses scaled metrics for fair comparison across different metric ranges.
+            If False, uses raw metrics for selection.
+            Default is True. Note: reported metrics are always raw (non-scaled) values.
         """
         if not self.method_data:
             raise ValueError("No data available. Call fetch_runs() first.")
@@ -352,28 +336,28 @@ class scIBAggregator:
             configs_df = data["configs"]
             other_logs_df = data["other_logs"]
 
-            # Get metrics DataFrame from Benchmarker
-            try:
-                results_df = benchmarker.get_results()
-                # Remove the "Metric Type" row if present
-                if "Metric Type" in results_df.index:
-                    metrics_df = results_df.drop(index="Metric Type")
-                else:
-                    metrics_df = results_df
-            except (AttributeError, KeyError, ValueError):
-                # Fallback if benchmarker is actually a DataFrame (for failed Benchmarker creation)
-                if isinstance(benchmarker, pd.DataFrame):
-                    metrics_df = benchmarker.drop(columns=["method"])
-                else:
-                    logger.warning("Could not extract metrics for method '%s', skipping", method)
-                    continue
+            # Get metrics DataFrame from Benchmarker for SELECTION (user choice of scaling)
+            selection_results_df = benchmarker.get_results(min_max_scale=min_max_scale_for_selection)
+            # Remove the "Metric Type" row if present
+            if "Metric Type" in selection_results_df.index:
+                selection_metrics_df = selection_results_df.drop(index="Metric Type")
+            else:
+                selection_metrics_df = selection_results_df
 
-            if sort_by not in metrics_df.columns:
+            if sort_by not in selection_metrics_df.columns:
                 logger.warning("Metric '%s' not found for method '%s', skipping", sort_by, method)
                 continue
 
-            # Find best run
-            best_idx = metrics_df[sort_by].idxmax()
+            # Find best run using the selection metrics (scaled or unscaled as requested)
+            best_idx = selection_metrics_df[sort_by].idxmax()
+
+            # Get metrics DataFrame for REPORTING (always unscaled)
+            reporting_results_df = benchmarker.get_results(min_max_scale=False)
+            # Remove the "Metric Type" row if present
+            if "Metric Type" in reporting_results_df.index:
+                reporting_metrics_df = reporting_results_df.drop(index="Metric Type")
+            else:
+                reporting_metrics_df = reporting_results_df
 
             # Collect best run data
             best_config = configs_df.loc[best_idx].copy()
@@ -381,8 +365,8 @@ class scIBAggregator:
             best_config.name = method  # Use method name as index
             best_configs.append(best_config)
 
-            # Extract metrics for best run and rename index to method
-            best_metric = metrics_df.loc[best_idx].copy()
+            # Extract metrics for best run using REPORTING metrics (always unscaled)
+            best_metric = reporting_metrics_df.loc[best_idx].copy()
             best_metric.name = method
             best_metrics.append(best_metric)
 
@@ -398,6 +382,16 @@ class scIBAggregator:
 
         # Create aggregated DataFrames
         configs_df = pd.DataFrame(best_configs)
+
+        # Remove redundant 'method' column (since DataFrame is indexed by method)
+        if "method" in configs_df.columns:
+            configs_df = configs_df.drop(columns=["method"])
+
+        # Ensure 'run_id' is the first column
+        if "run_id" in configs_df.columns:
+            cols = ["run_id"] + [col for col in configs_df.columns if col != "run_id"]
+            configs_df = configs_df[cols]
+
         other_logs_df = pd.DataFrame(best_other_logs)
 
         # Create metrics DataFrame and Benchmarker
@@ -421,25 +415,58 @@ class scIBAggregator:
 
         logger.info("Aggregated best runs for %d methods using metric '%s'", len(best_configs), sort_by)
 
-    def get_method_runs(self, method: str) -> dict[str, pd.DataFrame | Benchmarker]:
+    def get_method_runs(
+        self, method: str, sort_by: str = "Total", min_max_scale: bool = True
+    ) -> dict[str, pd.DataFrame | Benchmarker]:
         """
-        Get all data for a specific method.
+        Get all data for a specific method, optionally sorted by a metric.
 
         Parameters
         ----------
         method
             Method name to retrieve data for.
+        sort_by
+            Metric name to sort runs by. Default is "Total".
+            Must be a valid metric name (e.g., 'Total', 'Silhouette label', etc.).
+        min_max_scale
+            Whether to use min-max scaled metrics for sorting. Default is True.
+            If True, uses scaled metrics for fair comparison across different metric ranges.
+            If False, uses raw metrics for sorting.
 
         Returns
         -------
         dict
-            Dictionary with 'configs' (DataFrame), 'scib_benchmarker' (Benchmarker or DataFrame),
-            and 'other_logs' (DataFrame).
+            Dictionary with 'configs' (DataFrame), 'scib_benchmarker' (Benchmarker),
+            and 'other_logs' (DataFrame). The 'configs' and 'other_logs' DataFrames
+            are sorted by the specified metric in descending order (best runs first).
         """
         if method not in self.method_data:
             raise ValueError(f"Method '{method}' not found. Available methods: {list(self.method_data.keys())}")
 
-        return self.method_data[method]
+        method_data = self.method_data[method].copy()
+
+        # Get benchmarker and extract results for sorting
+        benchmarker = method_data["scib_benchmarker"]
+
+        # Get results from Benchmarker
+        results_df = benchmarker.get_results(min_max_scale=min_max_scale)
+
+        # Remove 'Metric Type' row if present
+        if "Metric Type" in results_df.index:
+            results_df = results_df.drop(index="Metric Type")
+
+        if sort_by not in results_df.columns:
+            available_metrics = list(results_df.columns)
+            raise ValueError(f"Metric '{sort_by}' not found. Available metrics: {available_metrics}")
+
+        # Sort by the specified metric (descending - best first)
+        sorted_order = results_df[sort_by].sort_values(ascending=False).index
+
+        # Apply sorting to configs and other_logs DataFrames
+        method_data["configs"] = method_data["configs"].loc[sorted_order]
+        method_data["other_logs"] = method_data["other_logs"].loc[sorted_order]
+
+        return method_data
 
     def get_models_and_embeddings(
         self,
@@ -463,9 +490,10 @@ class scIBAggregator:
             raise ValueError("Must call aggregate() first to determine best runs per method")
 
         configs_df = self.results["configs"]
+        assert isinstance(configs_df, pd.DataFrame), "configs should always be a DataFrame"
 
-        for _, row in configs_df.iterrows():
-            method = row["method"]
+        for method in configs_df.index:
+            row = configs_df.loc[method]
             run_id = row["run_id"]
 
             logger.debug("Processing method '%s', run_id: %s", method, run_id)

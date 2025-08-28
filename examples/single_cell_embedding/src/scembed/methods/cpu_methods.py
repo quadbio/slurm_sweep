@@ -4,6 +4,7 @@ import numpy as np
 import scanpy as sc
 
 from scembed.check import check_deps
+from slurm_sweep._logging import logger
 
 from .base import BaseIntegrationMethod
 
@@ -163,11 +164,14 @@ class LIGERMethod(BaseIntegrationMethod):
         check_deps("pyliger")
         import pyliger
 
-        # Setup raw counts for LIGER (data already validated)
+        # Setup raw counts for LIGER
         self.adata.X = self.adata.layers[self.counts_layer].copy()
 
-        # Use HVG subset (we know it exists from validation)
-        adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        # Use HVG subset
+        if self.use_hvg:
+            adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        else:
+            adata_hvg = self.adata.copy()
 
         # Split by batch for LIGER
         batch_cats = adata_hvg.obs[self.batch_key].cat.categories
@@ -242,6 +246,8 @@ class HVGMethod(BaseIntegrationMethod):
         n_bins: int | None = None,
         flavor: str | None = None,
         check_values: bool | None = None,
+        scale: bool = False,
+        provide_batch: bool = True,
         **kwargs,
     ):
         """
@@ -273,8 +279,28 @@ class HVGMethod(BaseIntegrationMethod):
             Method for identifying HVGs. Options: 'seurat', 'cell_ranger', 'seurat_v3', 'seurat_v3_paper'.
         check_values
             Check if counts in selected layer are integers. Only used if flavor='seurat_v3'/'seurat_v3_paper'.
+        scale
+            Whether to mean-scale the hvg-selected genes
+        provide_batch
+            Whether to provide batch annotations to scanpy.
         """
-        super().__init__(adata, **kwargs)
+        super().__init__(
+            adata,
+            layer=layer,
+            n_top_genes=n_top_genes,
+            min_mean=min_mean,
+            max_mean=max_mean,
+            min_disp=min_disp,
+            max_disp=max_disp,
+            span=span,
+            n_bins=n_bins,
+            flavor=flavor,
+            check_values=check_values,
+            scale=scale,
+            provide_batch=provide_batch,
+            **kwargs,
+        )
+
         self.layer = layer
         self.n_top_genes = n_top_genes
         self.min_mean = min_mean
@@ -285,6 +311,8 @@ class HVGMethod(BaseIntegrationMethod):
         self.n_bins = n_bins
         self.flavor = flavor
         self.check_values = check_values
+        self.scale = scale
+        self.provide_batch = provide_batch
 
     def fit(self):
         """Fit HVG method - no explicit fitting needed."""
@@ -304,8 +332,8 @@ class HVGMethod(BaseIntegrationMethod):
                 "span": self.span,
                 "n_bins": self.n_bins,
                 "flavor": self.flavor,
-                "batch_key": self.batch_key,  # Use the batch_key from base class
-                "subset": False,  # We don't want to subset the data in place
+                "batch_key": self.batch_key if self.provide_batch else None,  # Use the batch_key from base class
+                "subset": True,  # We always subset in place
                 "inplace": True,  # We want to modify the adata object
                 "check_values": self.check_values,
             }
@@ -313,19 +341,18 @@ class HVGMethod(BaseIntegrationMethod):
 
         # Compute highly variable genes
         sc.pp.highly_variable_genes(self.adata, **hvg_params)
+        logger.info("This selected %s highly variable genes.", self.adata.n_vars)
 
-        # Get HVG subset for embedding
-        hvg_mask = self.adata.var["highly_variable"]
-        if not hvg_mask.any():
-            raise ValueError("No highly variable genes found. Consider adjusting parameters.")
+        if self.scale:
+            sc.pp.scale(self.adata)
 
         # Use expression values of HVGs as embedding coordinates
         if self.layer is not None:
             if self.layer not in self.adata.layers:
                 raise ValueError(f"Layer '{self.layer}' not found in adata.layers")
-            hvg_expression = self.adata.layers[self.layer][:, hvg_mask]
+            hvg_expression = self.adata.layers[self.layer]
         else:
-            hvg_expression = self.adata.X[:, hvg_mask]
+            hvg_expression = self.adata.X
 
         # Convert to dense array if sparse
         if hasattr(hvg_expression, "toarray"):
@@ -347,7 +374,6 @@ class ScanoramaMethod(BaseIntegrationMethod):
         batch_size: int | None = None,
         verbose: bool | int | None = None,
         dimred: int | None = None,
-        hvg: int | None = None,
         return_dense: bool | None = None,
         union: bool | None = None,
         seed: int | None = None,
@@ -377,8 +403,6 @@ class ScanoramaMethod(BaseIntegrationMethod):
             When True or not equal to 0, prints logging output.
         dimred
             Dimensionality of integrated embedding.
-        hvg
-            Use this number of top highly variable genes based on dispersion.
         return_dense
             Return numpy.ndarray matrices instead of scipy.sparse.csr_matrix.
         union
@@ -400,7 +424,6 @@ class ScanoramaMethod(BaseIntegrationMethod):
         self.batch_size = batch_size
         self.verbose = verbose
         self.dimred = dimred
-        self.hvg_param = hvg  # Renamed to avoid conflict with self.hvg_key
         self.return_dense = return_dense
         self.union = union
         self.seed = seed
@@ -417,8 +440,11 @@ class ScanoramaMethod(BaseIntegrationMethod):
         check_deps("scanorama")
         import scanorama
 
-        # Use HVG subset (we know it exists from validation)
-        adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        # Use HVG subset
+        if self.use_hvg:
+            adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        else:
+            adata_hvg = self.adata.copy()
 
         # Split by batch
         batch_cats = adata_hvg.obs[self.batch_key].cat.categories
@@ -434,7 +460,6 @@ class ScanoramaMethod(BaseIntegrationMethod):
                 "batch_size": self.batch_size,
                 "verbose": self.verbose,
                 "dimred": self.dimred,
-                "hvg": self.hvg_param,
                 "return_dense": self.return_dense,
                 "union": self.union,
                 "seed": self.seed,

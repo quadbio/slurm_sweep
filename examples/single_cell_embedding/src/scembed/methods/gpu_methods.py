@@ -3,6 +3,7 @@
 import os
 import tempfile
 from pathlib import Path
+from typing import Literal
 
 from scembed.check import check_deps
 from scembed.utils import _get_wandb_logger
@@ -70,6 +71,11 @@ class scVIMethod(BaseIntegrationMethod):
         max_epochs: int | None = None,
         early_stopping: bool | None = None,
         accelerator: str | None = None,
+        batch_size: int | None = None,
+        dropout_rate: float | None = None,
+        use_batch_norm: Literal["encoder", "decoder", "none", "both"] | None = None,
+        use_layer_norm: Literal["encoder", "decoder", "none", "both"] | None = None,
+        lr: float | None = None,
         **kwargs,
     ):
         """
@@ -95,6 +101,16 @@ class scVIMethod(BaseIntegrationMethod):
             Whether to use early stopping during training.
         accelerator
             Accelerator type for training.
+        batch_size
+            Batch size for training.
+        dropout_rate
+            Dropout rate for training.
+        use_batch_norm
+            Specifies where to use BatchNorm1d in the model. See the scVI docs.
+        use_layer_norm
+            Specifies where to use LayerNorm in the model. See the scVI docs.
+        lr
+            Learning rate for the optimizer.
         """
         super().__init__(
             adata,
@@ -105,6 +121,11 @@ class scVIMethod(BaseIntegrationMethod):
             max_epochs=max_epochs,
             early_stopping=early_stopping,
             accelerator=accelerator,
+            batch_size=batch_size,
+            dropout_rate=dropout_rate,
+            use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
+            lr=lr,
             **kwargs,
         )
         self.n_latent = n_latent
@@ -114,6 +135,11 @@ class scVIMethod(BaseIntegrationMethod):
         self.max_epochs = max_epochs
         self.early_stopping = early_stopping
         self.accelerator = accelerator
+        self.batch_size = batch_size
+        self.dropout_rate = dropout_rate
+        self.use_batch_norm = use_batch_norm
+        self.use_layer_norm = use_layer_norm
+        self.lr = lr
         self.model = None
 
     def fit(self):
@@ -122,7 +148,10 @@ class scVIMethod(BaseIntegrationMethod):
         import scvi
 
         # Subset to highly variable genes
-        adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        if self.use_hvg:
+            adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        else:
+            adata_hvg = self.adata.copy()
 
         # Setup scVI with counts layer
         scvi.model.SCVI.setup_anndata(adata_hvg, layer=self.counts_layer, batch_key=self.batch_key)
@@ -134,6 +163,9 @@ class scVIMethod(BaseIntegrationMethod):
                 "n_layers": self.n_layers,
                 "n_hidden": self.n_hidden,
                 "gene_likelihood": self.gene_likelihood,
+                "dropout_rate": self.dropout_rate,
+                "use_batch_norm": self.use_batch_norm,
+                "use_layer_norm": self.use_layer_norm,
             }
         )
 
@@ -150,10 +182,15 @@ class scVIMethod(BaseIntegrationMethod):
                 "max_epochs": self.max_epochs,
                 "early_stopping": self.early_stopping,
                 "accelerator": self.accelerator,
+                "batch_size": self.batch_size,
             }
         )
         if wandb_logger is not None:
             train_params["logger"] = wandb_logger
+
+        # Handle learning rate via plan_kwargs if specified
+        if self.lr is not None:
+            train_params["plan_kwargs"] = {"lr": self.lr}
 
         self.model.train(**train_params)
         self.is_fitted = True
@@ -187,6 +224,9 @@ class scANVIMethod(BaseIntegrationMethod):
         max_epochs: int | None = None,
         early_stopping: bool | None = None,
         accelerator: str | None = None,
+        linear_classifier: bool | None = None,
+        batch_size: int | None = None,
+        lr: float | None = None,
         **kwargs,
     ):
         """
@@ -206,6 +246,12 @@ class scANVIMethod(BaseIntegrationMethod):
             Whether to use early stopping during training.
         accelerator
             Accelerator type for training.
+        linear_classifier
+            Whether to use a linear classifier for scANVI.
+        batch_size
+            Batch size for training.
+        lr
+            Learning rate for the optimizer.
         """
         super().__init__(
             adata,
@@ -213,12 +259,18 @@ class scANVIMethod(BaseIntegrationMethod):
             max_epochs=max_epochs,
             early_stopping=early_stopping,
             accelerator=accelerator,
+            linear_classifier=linear_classifier,
+            batch_size=batch_size,
+            lr=lr,
             **kwargs,
         )
         self.scvi_params = scvi_params or {}
         self.max_epochs = max_epochs
         self.early_stopping = early_stopping
         self.accelerator = accelerator
+        self.linear_classifier = linear_classifier
+        self.batch_size = batch_size
+        self.lr = lr
         self.scvi_model = None
         self.model = None
 
@@ -234,6 +286,7 @@ class scANVIMethod(BaseIntegrationMethod):
             batch_key=self.batch_key,
             cell_type_key=self.cell_type_key,
             hvg_key=self.hvg_key,
+            use_hvg=self.use_hvg,
             counts_layer=self.counts_layer,
             **self.scvi_params,
         )
@@ -246,10 +299,9 @@ class scANVIMethod(BaseIntegrationMethod):
 
         # Step 2: Create scANVI from scVI
         logger.info("Creating scANVI from pretrained scVI model")
+        scanvi_params = self._filter_none_params({"linear_classifier": self.linear_classifier})
         self.model = scvi.model.SCANVI.from_scvi_model(
-            self.scvi_model,
-            labels_key=self.cell_type_key,
-            unlabeled_category=self.unlabeled_category,
+            self.scvi_model, labels_key=self.cell_type_key, unlabeled_category=self.unlabeled_category, **scanvi_params
         )
         logger.info("Set up scANVI model: %s", self.model)
 
@@ -262,10 +314,14 @@ class scANVIMethod(BaseIntegrationMethod):
                 "max_epochs": self.max_epochs,
                 "early_stopping": self.early_stopping,
                 "accelerator": self.accelerator,
+                "batch_size": self.batch_size,
             }
         )
         if wandb_logger is not None:
             train_params["logger"] = wandb_logger
+
+        if self.lr is not None:
+            train_params["plan_kwargs"] = {"lr": self.lr}
 
         self.model.train(**train_params)
         self.is_fitted = True
@@ -317,6 +373,8 @@ class scPoliMethod(BaseIntegrationMethod):
         pretraining_epochs: int | None = None,
         recon_loss: str | None = None,
         eta: float | None = None,
+        alpha_epoch_anneal: int | None = None,
+        unlabeled_prototype_training: bool | None = None,
         **kwargs,
     ):
         """
@@ -356,6 +414,10 @@ class scPoliMethod(BaseIntegrationMethod):
             Reconstruction loss type.
         eta
             Eta parameter for training.
+        alpha_epoch_anneal
+            Number of epochs to linearly anneal alpha.
+        unlabeled_prototype_training
+            Whether to use unlabeled prototype training.
         """
         super().__init__(
             adata,
@@ -373,6 +435,8 @@ class scPoliMethod(BaseIntegrationMethod):
             pretraining_epochs=pretraining_epochs,
             recon_loss=recon_loss,
             eta=eta,
+            alpha_epoch_anneal=alpha_epoch_anneal,
+            unlabeled_prototype_training=unlabeled_prototype_training,
             **kwargs,
         )
         self.embedding_dims = embedding_dims
@@ -389,6 +453,8 @@ class scPoliMethod(BaseIntegrationMethod):
         self.pretraining_epochs = pretraining_epochs
         self.recon_loss = recon_loss
         self.eta = eta
+        self.alpha_epoch_anneal = alpha_epoch_anneal
+        self.unlabeled_prototype_training = unlabeled_prototype_training
         self.model = None
 
     def fit(self):
@@ -397,7 +463,10 @@ class scPoliMethod(BaseIntegrationMethod):
         from scarches.models.scpoli import scPoli
 
         # Subset to highly variable genes
-        adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        if self.use_hvg:
+            adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        else:
+            adata_hvg = self.adata.copy()
 
         # Early stopping configuration
         early_stopping_kwargs = {
@@ -445,6 +514,8 @@ class scPoliMethod(BaseIntegrationMethod):
                 "n_epochs": self.n_epochs,
                 "pretraining_epochs": self.pretraining_epochs,
                 "eta": self.eta,
+                "alpha_epoch_anneal": self.alpha_epoch_anneal,
+                "unlabeled_prototype_training": self.unlabeled_prototype_training,
             }
         )
 
@@ -460,7 +531,10 @@ class scPoliMethod(BaseIntegrationMethod):
             raise ValueError("Model must be fitted before transform")
 
         # Subset to highly variable genes (same as used during training)
-        adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        if self.use_hvg:
+            adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        else:
+            adata_hvg = self.adata.copy()
 
         # Get latent representation
         latent = self.model.get_latent(adata_hvg, mean=True)
@@ -503,7 +577,6 @@ class ResolVIMethod(BaseIntegrationMethod):
         mixture_k: int | None = None,
         downsample_counts: bool | None = None,
         max_epochs: int | None = None,
-        early_stopping: bool | None = None,
         lr: float | None = None,
         lr_extra: float | None = None,
         weight_decay: float | None = None,
@@ -512,6 +585,7 @@ class ResolVIMethod(BaseIntegrationMethod):
         n_epochs_kl_warmup: int | None = None,
         batch_size: int | None = None,
         accelerator: str | None = None,
+        n_neighbors: int = 10,
         **kwargs,
     ):
         """
@@ -549,8 +623,6 @@ class ResolVIMethod(BaseIntegrationMethod):
             Whether to downsample counts.
         max_epochs
             Maximum epochs for ResolVI training.
-        early_stopping
-            Whether to use early stopping during training.
         lr
             Learning rate for optimization.
         lr_extra
@@ -567,6 +639,8 @@ class ResolVIMethod(BaseIntegrationMethod):
             Batch size for training.
         accelerator
             Accelerator type for training.
+        n_neighbors
+            Number of neighbors for spatial graph.
         """
         super().__init__(
             adata,
@@ -584,7 +658,6 @@ class ResolVIMethod(BaseIntegrationMethod):
             mixture_k=mixture_k,
             downsample_counts=downsample_counts,
             max_epochs=max_epochs,
-            early_stopping=early_stopping,
             lr=lr,
             lr_extra=lr_extra,
             weight_decay=weight_decay,
@@ -593,6 +666,7 @@ class ResolVIMethod(BaseIntegrationMethod):
             n_epochs_kl_warmup=n_epochs_kl_warmup,
             batch_size=batch_size,
             accelerator=accelerator,
+            n_neighbors=n_neighbors,
             **kwargs,
         )
 
@@ -610,7 +684,6 @@ class ResolVIMethod(BaseIntegrationMethod):
         self.mixture_k = mixture_k
         self.downsample_counts = downsample_counts
         self.max_epochs = max_epochs
-        self.early_stopping = early_stopping
         self.lr = lr
         self.lr_extra = lr_extra
         self.weight_decay = weight_decay
@@ -619,6 +692,7 @@ class ResolVIMethod(BaseIntegrationMethod):
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
         self.batch_size = batch_size
         self.accelerator = accelerator
+        self.n_neighbors = n_neighbors
         self.model = None
 
     def fit(self):
@@ -634,12 +708,17 @@ class ResolVIMethod(BaseIntegrationMethod):
         # Setup ResolVI data registration
         # ResolVI setup_anndata will automatically compute spatial neighbors if missing
 
+        if self.use_hvg:
+            adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        else:
+            adata_hvg = self.adata.copy()
+
         scvi.external.RESOLVI.setup_anndata(
-            self.adata,
+            adata_hvg,
             layer=self.counts_layer,
             batch_key=self.batch_key,
             labels_key=self.cell_type_key if self.semisupervised else None,
-            prepare_data_kwargs={"spatial_rep": self.spatial_key},
+            prepare_data_kwargs={"spatial_rep": self.spatial_key, "n_neighbors": self.n_neighbors},
             unlabeled_category=self.unlabeled_category,
         )
 
@@ -663,7 +742,7 @@ class ResolVIMethod(BaseIntegrationMethod):
 
         # Create ResolVI model
         self.model = scvi.external.RESOLVI(
-            self.adata,
+            adata_hvg,
             **model_params,
         )
         logger.info("Set up ResolVI model: %s", self.model)
@@ -672,7 +751,6 @@ class ResolVIMethod(BaseIntegrationMethod):
         train_params = self._filter_none_params(
             {
                 "max_epochs": self.max_epochs,
-                "early_stopping": self.early_stopping,
                 "lr": self.lr,
                 "lr_extra": self.lr_extra,
                 "weight_decay": self.weight_decay,
@@ -826,6 +904,7 @@ class scVIVAMethod(BaseIntegrationMethod):
                     "batch_key": self.batch_key,
                     "cell_type_key": self.cell_type_key,
                     "hvg_key": self.hvg_key,
+                    "use_hvg": self.use_hvg,
                     "counts_layer": self.counts_layer,
                 }
             )
@@ -842,6 +921,7 @@ class scVIVAMethod(BaseIntegrationMethod):
                     "batch_key": self.batch_key,
                     "cell_type_key": self.cell_type_key,
                     "hvg_key": self.hvg_key,
+                    "use_hvg": self.use_hvg,
                     "counts_layer": self.counts_layer,
                     "unlabeled_category": self.unlabeled_category,
                     "scvi_params": self.scvi_params,
@@ -856,9 +936,14 @@ class scVIVAMethod(BaseIntegrationMethod):
         # Step 2: Run scVIVA preprocessing to compute spatial neighborhoods
         logger.info("Running scVIVA preprocessing")
 
+        if self.use_hvg:
+            adata_hvg = self.adata[:, self.adata.var[self.hvg_key]].copy()
+        else:
+            adata_hvg = self.adata.copy()
+
         # Prepare preprocessing parameters, filtering out None values for k_nn only
         preprocessing_params = {
-            "adata": self.adata,
+            "adata": adata_hvg,
             "sample_key": self.batch_key,
             "labels_key": self.cell_type_key,
             "cell_coordinates_key": self.spatial_key,
@@ -874,7 +959,7 @@ class scVIVAMethod(BaseIntegrationMethod):
 
         # Step 3: Setup scVIVA data registration
         scvi.external.SCVIVA.setup_anndata(
-            self.adata,
+            adata_hvg,
             layer=self.counts_layer,
             batch_key=self.batch_key,
             sample_key=self.batch_key,
@@ -896,7 +981,7 @@ class scVIVAMethod(BaseIntegrationMethod):
             }
         )
 
-        self.model = scvi.external.SCVIVA(self.adata, **model_params)
+        self.model = scvi.external.SCVIVA(adata_hvg, **model_params)
         logger.info("Set up scVIVA model: %s", self.model)
 
         # Prepare training parameters, filtering out None values

@@ -105,6 +105,9 @@ class IntegrationEvaluator:
         subsample_to: int | None = None,
         subsample_strategy: Literal["naive", "proportional"] = "naive",
         subsample_key: str | None = None,
+        subset_to: tuple[str, str | int | list[str | int]] | None = None,
+        bio_conservation_metrics: BioConservation | None = None,
+        batch_correction_metrics: BatchCorrection | None = None,
     ) -> None:
         """
         Evaluate integration using scIB metrics.
@@ -121,6 +124,12 @@ class IntegrationEvaluator:
             Strategy for subsampling when subsample_to is provided.
         subsample_key
             Key for proportional subsampling. If None, uses batch_key for proportional strategy.
+        subset_to
+            Tuple of a key in .obs and a list of categories to subset to.
+        bio_conservation_metrics
+            BioConservation metrics configuration. If None, defaults to BioConservation().
+        batch_correction_metrics
+            BatchCorrection metrics configuration. If None, defaults to BatchCorrection().
         """
         logger.info("Computing scIB metrics...")
 
@@ -133,6 +142,15 @@ class IntegrationEvaluator:
             )
         else:
             adata_work = self.adata
+
+        # Subset if requrested
+        if subset_to is not None:
+            key, values = subset_to
+            if not isinstance(values, (list | tuple)):
+                values = [values]
+            mask = adata_work.obs[key].isin(values)
+            logger.info("Subsetting to %s cells", f"{mask.sum():,}")
+            adata_work = adata_work[mask].copy()
 
         # Filter cells without cell type annotations
         before_filter = adata_work.shape[0]
@@ -153,6 +171,12 @@ class IntegrationEvaluator:
             except RuntimeError:
                 logger.info("FAISS not available, falling back to default neighbor search")
 
+        # Set up default metrics if not provided
+        if bio_conservation_metrics is None:
+            bio_conservation_metrics = BioConservation()
+        if batch_correction_metrics is None:
+            batch_correction_metrics = BatchCorrection()
+
         # Set up benchmarker
         bm = Benchmarker(
             adata_filtered,
@@ -160,8 +184,8 @@ class IntegrationEvaluator:
             label_key=self.cell_type_key,
             embedding_obsm_keys=[self.embedding_key],
             pre_integrated_embedding_obsm_key=self.baseline_embedding_key,
-            bio_conservation_metrics=BioConservation(isolated_labels=False),
-            batch_correction_metrics=BatchCorrection(),
+            bio_conservation_metrics=bio_conservation_metrics,
+            batch_correction_metrics=batch_correction_metrics,
             n_jobs=-1,
         )
 
