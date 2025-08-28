@@ -87,7 +87,8 @@ def main():
         batch_key=method.batch_key,
         cell_type_key=method.cell_type_key,
         output_dir=method.output_dir,
-        baseline_embedding_key=method.pca_key,  # Use existing PCA from preprocessing
+        baseline_embedding_key=method.pca_key,  # Use existing PCA
+        ignore_cell_types=method.unlabeled_category,
     )
 
     # Run scIB evaluation

@@ -3,6 +3,7 @@ general: # general configuration for the sweep, required
   entity: your_entity # Name of the wandb entity, required
   mamba_env: your_mamba_env # Name of the mamba environment, optional
   modules: your_modules # List of modules to load, space separated, optional
+  count: 1 # number of parameter combinations evaluates per job in the array, optional
 
 slurm: # slurm configuration, optional
   time: "00:30:00"
