@@ -10,8 +10,12 @@ and this project adheres to [Semantic Versioning][].
 
 ## [Unreleased]
 
+## [v0.2.0]
+
 ### Added
 - PyPI badge and installation instructions [#6]
+- Added two examples for data integration: one for scRNA-seq data [#13], [#14], [#15], [#16] and one for spatial data (seqFISH) [#17]
+- Added a count parameter [#9]
 
 ## [v0.1.3]
 
