@@ -5,3 +5,5 @@ This folder contains examples for how `slurm-sweep` can be used. Each folder con
 - `simple`: synthetic example, simulates model training without doing much. Good starting point.
 - `scrna_seq_embedding`: compare data integration approaches for scRNA-seq data in terms of scIB metrics.
 - `spatial_embedding`: compare spatial and non-spatial data integration approaches on a spatial transcriptomics dataset.
+
+To run the data integration examples, you need the additional `scembed` package, which incudes shallow wrappers around comonly used methods as well as evaluation and aggregation utilities. You can install the main package with `pip install scembed`, but you might need optional dependencies which are documented in the `scembed` [documentation](https://scembed.readthedocs.io/en/latest/).
