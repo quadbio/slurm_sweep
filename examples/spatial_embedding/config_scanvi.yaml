@@ -1,5 +1,5 @@
 general:
-  project_name: scembed_test_spatial_rc1
+  project_name: scembed_test_spatial
   mamba_env: scembed
   entity: spatial_vi
   modules: stack eth_proxy

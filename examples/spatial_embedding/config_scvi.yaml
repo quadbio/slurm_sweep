@@ -8,22 +8,22 @@ general:
 slurm:
   time: "01:00:00"
   mem_per_cpu: "32G"
-  job_name: scembed_resolvi
-  output: slurm_logs/resolvi_%A_%a.out
+  job_name: scembed_scvi
+  output: slurm_logs/scvi_%A_%a.out
   array: "0-3"
   gpus: rtx_4090:1
 
 wandb:
   program: train.py
   method: grid
-  name: resolvi
+  name: scvi
   metric:
     goal: maximize
     name: scib_total_score
   parameters:
     method:
-      value: resolvi
-    semisupervised:
-      values: [true, false]
-    max_epochs:
-      values: [20, 40]
+      value: scvi
+    n_layers:
+      values: [1, 2]
+    batch_size:
+      values: [512, 1024]
