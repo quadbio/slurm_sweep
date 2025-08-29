@@ -13,11 +13,11 @@
             "console": "internalConsole",
             "justMyCode": false,
             "env": {
-                "PYTEST_ADDOPTS": "--color=yes"
+                "PYTEST_ADDOPTS": "--color=yes",
             },
             "presentation": {
-                "hidden": true
-            }
-        }
-    ]
+                "hidden": true,
+            },
+        },
+    ],
 }
