@@ -1,0 +1,29 @@
+general:
+  project_name: scembed_test_spatial_2
+  mamba_env: scembed
+  entity: spatial_vi
+  modules: stack eth_proxy
+  count: 1
+
+slurm:
+  time: "01:00:00"
+  mem_per_cpu: "32G"
+  job_name: scembed_scviva
+  output: slurm_logs/scviva_%A_%a.out
+  array: "0-3"
+  gpus: rtx_4090:1
+
+wandb:
+  program: train.py
+  method: grid
+  name: scviva
+  metric:
+    goal: maximize
+    name: scib_total_score
+  parameters:
+    method:
+      value: scviva
+    embedding_method:
+      values: [scvi, scanvi]
+    knn:
+      values: [10, 20]
