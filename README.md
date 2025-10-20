@@ -33,7 +33,7 @@ You need config file in `yaml` format. This file should have three sections:
 This needs to be a python script that defines the training and evaluation logic. It should call `wandb.init()` and retrieve parameters from `wandb.config`. It can log values using `wandb.log`. See the [W&B docs](https://docs.wandb.ai/guides/sweeps/).
 
 ### Submission
-Once you're ready, you can test your config file using `slurm-sweep validate_config config.yaml`. If this passes, create a submission script using `slurm-sweep configure-sweep config.yaml`, and submit with `sbatch submit.sh`.
+Once you're ready, you can test your config file using `slurm-sweep validate-config config.yaml`. If this passes, create a submission script using `slurm-sweep configure-sweep config.yaml`, and submit with `sbatch submit.sh`.
 
 ## Installation
 
