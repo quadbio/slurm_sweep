@@ -27,7 +27,7 @@ def main():
     wandb.init()
 
     # Extract method and parameters from config
-    config = wandb.config.config
+    config = wandb.config
     method_name = config["method"]
 
     # Extract method-specific parameters (everything except 'method')
