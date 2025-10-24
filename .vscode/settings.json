@@ -1,6 +1,6 @@
 {
     "[python][json][jsonc]": {
-        "editor.formatOnSave": true,
+        "editor.formatOnSave": false,
     },
     "[python]": {
         "editor.defaultFormatter": "charliermarsh.ruff",

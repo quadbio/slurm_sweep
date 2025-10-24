@@ -1,0 +1,24 @@
+general:
+  project_name: scembed_test_spatial_2
+  mamba_env: slurm_sweep
+  entity: spatial_vi
+  modules: stack eth_proxy
+
+slurm:
+  time: "01:00:00"
+  mem_per_cpu: "32G"
+  job_name: scembed_pca
+  output: slurm_logs/pca_%A_%a.out
+
+wandb:
+  program: train.py
+  method: grid
+  name: pca
+  metric:
+    goal: maximize
+    name: scib_total_score
+  parameters:
+    method:
+      value: precomputed_pca
+    embedding_key:
+      value: "X_pca"

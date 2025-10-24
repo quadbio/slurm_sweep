@@ -1,11 +1,105 @@
-import anndata as ad
-import numpy as np
 import pytest
+import yaml
 
 
 @pytest.fixture
-def adata():
-    adata = ad.AnnData(X=np.array([[1.2, 2.3], [3.4, 4.5], [5.6, 6.7]]).astype(np.float32))
-    adata.layers["scaled"] = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]).astype(np.float32)
+def valid_config_file(tmp_path):
+    config = {
+        "wandb": {
+            "program": "train.py",
+            "method": "grid",
+            "parameters": {"lr": {"values": [0.01, 0.1]}},
+        },
+        "general": {
+            "entity": "test_entity",
+            "project_name": "test_project",
+        },
+    }
+    file_path = tmp_path / "valid_config.yaml"
+    with open(file_path, "w") as f:
+        yaml.dump(config, f)
+    return file_path
 
-    return adata
+
+@pytest.fixture
+def invalid_config_file(tmp_path):
+    config = {
+        "wandb": {
+            "method": "grid",
+        },
+        "general": {
+            "entity": "test_entity",
+        },
+    }
+    file_path = tmp_path / "invalid_config.yaml"
+    with open(file_path, "w") as f:
+        yaml.dump(config, f)
+    return file_path
+
+
+@pytest.fixture
+def unexpected_block_config_file(tmp_path):
+    config = {
+        "wandb": {
+            "program": "train.py",
+            "method": "grid",
+            "parameters": {"lr": {"values": [0.01, 0.1]}},
+        },
+        "general": {
+            "entity": "test_entity",
+            "project_name": "test_project",
+        },
+        "extra_block": {"key": "value"},
+    }
+    file_path = tmp_path / "unexpected_block_config.yaml"
+    with open(file_path, "w") as f:
+        yaml.dump(config, f)
+    return file_path
+
+
+@pytest.fixture
+def sweep_config():
+    return {
+        "method": "grid",
+        "parameters": {
+            "lr": {"values": [0.01, 0.1]},
+            "batch_size": {"values": [32, 64]},
+        },
+    }
+
+
+@pytest.fixture
+def expected_slurm_script():
+    return """#!/bin/bash
+
+#SBATCH --partition           test
+#SBATCH --time                01:00:00
+
+module load test_module
+source $HOME/.bashrc
+mamba activate test_env
+wandb agent "test_entity/test_project/test-sweep-id"
+"""
+
+
+@pytest.fixture
+def valid_cli_config_file(tmp_path):
+    config = """
+    wandb:
+      program: train.py
+      method: grid
+      parameters:
+        lr:
+          values: [0.01, 0.1]
+    general:
+      entity: test_entity
+      project_name: test_project
+      mamba_env: test_env
+      modules: test_module
+    slurm:
+      time: "01:00:00"
+      partition: test
+    """
+    config_path = tmp_path / "cli_config.yaml"
+    config_path.write_text(config)
+    return str(config_path)

@@ -1,0 +1,29 @@
+general:
+  project_name: scembed_test_spatial_2
+  mamba_env: scembed
+  entity: spatial_vi
+  modules: stack eth_proxy
+  count: 1
+
+slurm:
+  time: "01:00:00"
+  mem_per_cpu: "32G"
+  job_name: scembed_scanvi
+  output: slurm_logs/scanvi_%A_%a.out
+  array: "0-3"
+  gpus: rtx_4090:1
+
+wandb:
+  program: train.py
+  method: grid
+  name: scanvi
+  metric:
+    goal: maximize
+    name: scib_total_score
+  parameters:
+    method:
+      value: scanvi
+    n_samples_per_label:
+      values: [50, 100]
+    max_epochs:
+      values: [30, 50]

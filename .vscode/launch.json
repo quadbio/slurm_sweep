@@ -5,16 +5,6 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Build Documentation",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "sphinx",
-            "args": ["-M", "html", ".", "_build"],
-            "cwd": "${workspaceFolder}/docs",
-            "console": "internalConsole",
-            "justMyCode": false,
-        },
-        {
             "name": "Python: Debug Test",
             "type": "debugpy",
             "request": "launch",

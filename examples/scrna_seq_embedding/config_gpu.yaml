@@ -1,0 +1,49 @@
+general:
+  project_name: scembed_test_3
+  mamba_env: scembed
+  entity: spatial_vi
+  modules: stack eth_proxy
+  count: 1 # single run per job, good for longer running jobs to avoid time outs.
+
+slurm:
+  time: "01:00:00"
+  mem_per_cpu: "16G"
+  job_name: scembed_gpu
+  output: slurm_logs/gpu_%A_%a.out
+  array: "0-15"
+  gpus: rtx_4090:1
+
+wandb:
+  program: train.py
+  method: grid
+  name: gpu_methods
+  metric:
+    goal: maximize
+    name: scib_total_score
+  parameters:
+    config:
+      values: [
+        # Harmony
+        {"method": "harmony", "theta": 1.0},
+        {"method": "harmony", "theta": 2.0},
+        {"method": "harmony", "theta": 5.0},
+
+        # scVI
+        {"method": "scvi"}, # default
+        {"method": "scvi", "n_latent": 10, "n_layers": 1},
+        {"method": "scvi", "n_latent": 10, "n_layers": 2},
+        {"method": "scvi", "n_latent": 30, "n_layers": 1},
+        {"method": "scvi", "n_latent": 30, "n_layers": 2},
+        {"method": "scvi", "n_latent": 50, "n_layers": 1},
+        {"method": "scvi", "n_latent": 50, "n_layers": 2},
+
+        # scANVI
+        {"method": "scanvi"}, # default
+        {"method": "scanvi", "scvi_params": {"n_latent": 10, "n_layers": 2, "max_epochs": 50, "early_stopping": true}},
+        {"method": "scanvi", "n_sample_per_label": 100, "early_stopping": true, "scvi_params": {"n_latent": 30, "n_layers": 2, "max_epochs": 50, "early_stopping": true}},
+
+        # scPoli
+        {"method": "scpoli"}, # default
+        {"method": "scpoli", "embedding_dims": 5, "n_epochs": 50, "pretraining_epochs": 40},
+        {"method": "scpoli", "embedding_dims": 10, "n_epochs": 50, "pretraining_epochs": 40}
+      ]

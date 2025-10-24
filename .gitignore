@@ -16,6 +16,12 @@ __pycache__/
 /node_modules/
 /.coverage*
 
-# docs
-/docs/generated/
-/docs/_build/
+# example outputs
+wandb/
+slurm_logs/
+.ipynb_checkpoints/
+results/
+top_results/
+
+# data files
+*.h5ad
