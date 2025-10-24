@@ -37,7 +37,7 @@ Once you're ready, you can test your config file using `slurm-sweep validate-con
 
 ## Installation
 
-You need to have Python 3.10 or newer installed on your system.
+You need to have Python 3.11 or newer installed on your system.
 If you don't have Python installed, we recommend installing [uv][].
 
 There are two alternative options to install `slurm_sweep`:
