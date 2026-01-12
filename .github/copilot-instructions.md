@@ -2,7 +2,7 @@
 
 ## Important Notes
 - Avoid drafting summary documents or endless markdown files. Just summarize in chat what you did, why, and any open questions.
-- When running terminal commands, activate the appropriate environment first (`mamba activate slurm_sweep`).
+- When running terminal commands, use `uv run` to execute commands within the project's virtual environment (e.g., `uv run python script.py`).
 - Rather than making assumptions, ask for clarification when uncertain.
 - **GitHub workflows**: Use GitHub CLI (`gh`) when possible. For GitHub MCP server tools, ensure Docker Desktop is running first (`open -a "Docker Desktop"`).
 
@@ -38,13 +38,22 @@
 
 ## Development Workflow
 
-### Environment Management (Hatch-based)
+### Environment Management (uv-based)
 ```bash
-# Testing - NEVER use pytest directly
-hatch test                    # run pytest in isolated environment
+# Create/sync virtual environment
+uv sync                        # install project with default dependencies
+uv sync --extra test           # include test dependencies
+uv sync --all-extras           # include all optional dependencies
+
+# Run commands in virtual environment
+uv run python script.py        # run any Python script
+uv run pytest tests/           # run tests directly (alternative to hatch)
+
+# Testing via hatch (recommended, runs test matrix, uses uv internally)
+hatch test                     # run pytest in isolated environment
 
 # Environment inspection
-hatch env show                # list environments
+hatch env show                 # list environments
 ```
 
 ### Testing Strategy
