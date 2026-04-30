@@ -23,6 +23,8 @@ classifiers = [
 ]
 dynamic = [ "version" ]
 dependencies = [
+  "pyyaml",
+  "rich",
   # for debug logging (referenced from the issue template)
   "session-info2",
   "simple-slurm",
