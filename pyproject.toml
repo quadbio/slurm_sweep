@@ -20,6 +20,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
 ]
 dynamic = [ "version" ]
 dependencies = [
@@ -131,11 +132,11 @@ ini_options.addopts = [
 ini_options.xfail_strict = true
 
 [tool.coverage]
+run.source = [ "slurm_sweep" ]
 run.omit = [
   "**/test_*.py",
 ]
 run.patch = [ "subprocess" ]
-run.source = [ "slurm_sweep" ]
 
 [tool.cruft]
 skip = [
