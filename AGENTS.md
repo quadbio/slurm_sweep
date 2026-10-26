@@ -27,22 +27,23 @@ checks. This file only owns the project invariants and source-of-truth map.
 
 ## Where To Find What
 
-| Topic | Source of truth |
-|-------|-----------------|
-| CLI commands (`configure-sweep`, `validate-config`) | `src/slurm_sweep/cli.py` |
-| Console-script entry shim (`slurm-sweep` → `app`) | `src/slurm_sweep/main.py` |
-| Sweep registration + `submit.sh` generation | `src/slurm_sweep/sweep_class.py` (`SweepManager`) |
-| YAML config schema + validation | `src/slurm_sweep/utils.py` (`ConfigValidator`) |
-| Logger setup (`logger`) | `src/slurm_sweep/_logging.py` |
-| Public API | `src/slurm_sweep/__init__.py` — exports `SweepManager`, `logger` only |
-| Example configs and training scripts | `examples/` (`basic_config.yaml`, `simple/`, `scrna_seq_embedding/`, `spatial_embedding/`) |
-| Test fixtures | `tests/conftest.py` |
-| Contributor guide | `docs/contributing.md` |
-| PR review workflow & risk areas | `REVIEW_GUIDE.md` |
+| Topic                                               | Source of truth                                                                            |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| CLI commands (`configure-sweep`, `validate-config`) | `src/slurm_sweep/cli.py`                                                                   |
+| Console-script entry shim (`slurm-sweep` → `app`)   | `src/slurm_sweep/main.py`                                                                  |
+| Sweep registration + `submit.sh` generation         | `src/slurm_sweep/sweep_class.py` (`SweepManager`)                                          |
+| YAML config schema + validation                     | `src/slurm_sweep/utils.py` (`ConfigValidator`)                                             |
+| Logger setup (`logger`)                             | `src/slurm_sweep/_logging.py`                                                              |
+| Public API                                          | `src/slurm_sweep/__init__.py` — exports `SweepManager`, `logger` only                      |
+| Example configs and training scripts                | `examples/` (`basic_config.yaml`, `simple/`, `scrna_seq_embedding/`, `spatial_embedding/`) |
+| Test fixtures                                       | `tests/conftest.py`                                                                        |
+| Contributor guide                                   | `docs/contributing.md`                                                                     |
+| PR review workflow & risk areas                     | `REVIEW_GUIDE.md`                                                                          |
 
 ## Critical Invariants
 
 ### Config schema (enforced by `ConfigValidator`)
+
 - Three top-level blocks: `general`, `slurm`, `wandb`. Unknown blocks trigger a
   warning and are ignored.
 - `wandb` is mandatory and must contain `program`, `method`, and `parameters`
@@ -51,6 +52,7 @@ checks. This file only owns the project invariants and source-of-truth map.
 - `slurm` is optional; defaults to `{}` if missing.
 
 ### Generated `submit.sh` shape
+
 - `simple_slurm.Slurm(**slurm_parameters)` builds the `#SBATCH` header.
 - Optional `module load <modules>` (space-separated string in config).
 - Optional mamba activation: `source $HOME/.bashrc && mamba activate <env>`. The
@@ -59,17 +61,20 @@ checks. This file only owns the project invariants and source-of-truth map.
 - `count: 1` is the recommended SLURM setting — one agent per array task.
 
 ### CLI / entry point
+
 - `pyproject.toml` declares `scripts.slurm-sweep = "slurm_sweep.main:app"`.
   `main.py` is a one-line re-export of `cli.app`; do not move logic into it.
 - `wandb.login()` is called inside `SweepManager.register_sweep()`, so the user
   must already be logged in when running `configure-sweep`.
 
 ### Public API
+
 - Only `SweepManager` and `logger` are exported from the top level. Everything
   else (`ConfigValidator`, internal helpers) is reachable only via submodule
   imports. Keep this surface minimal — additions require justification.
 
 ### Training scripts (user-supplied)
+
 - Must call `wandb.init()` and read hyperparameters from `wandb.config`.
 - Metrics must be logged via `wandb.log()` for the sweep to optimize anything.
 - `examples/simple/train.py` is the canonical minimal template.

@@ -37,11 +37,11 @@ Use `AGENTS.md` for architecture, invariants, and commands. Use this guide for r
 
 ## Changed-Path Test Lookup
 
-| Touched file | Tests to look at |
-|--------------|------------------|
-| `src/slurm_sweep/cli.py`, `src/slurm_sweep/main.py` | `tests/test_cli.py` |
-| `src/slurm_sweep/sweep_class.py` | `tests/test_sweep_manager.py` |
-| `src/slurm_sweep/utils.py` | `tests/test_config_validation.py` |
+| Touched file                                                | Tests to look at                           |
+| ----------------------------------------------------------- | ------------------------------------------ |
+| `src/slurm_sweep/cli.py`, `src/slurm_sweep/main.py`         | `tests/test_cli.py`                        |
+| `src/slurm_sweep/sweep_class.py`                            | `tests/test_sweep_manager.py`              |
+| `src/slurm_sweep/utils.py`                                  | `tests/test_config_validation.py`          |
 | `src/slurm_sweep/_logging.py`, `__init__.py`, cross-cutting | `tests/test_basic.py`, `tests/conftest.py` |
 
 ## Testing
@@ -58,7 +58,7 @@ Apply these checks whenever the PR touches code or tests. **Read CI output rathe
 - Distinguish critical regressions (config-schema, `submit.sh` shape, CLI surface) from trivial or flaky failures.
 - Surface critical failures back to the author and ask them to fix before merge.
 
-**Modified tests.** Scrutinize *how* existing tests were changed.
+**Modified tests.** Scrutinize _how_ existing tests were changed.
 - PRs that only relax thresholds, remove assertions, delete cases, or loosen `parametrize` matrices are a red flag — tests-working-around-tests defeats the purpose.
 - Require an explicit justification in the PR body for any weakened assertion; do not accept silently.
 
