@@ -24,15 +24,18 @@
 Create an account on [W&B][] and take a look at our examples in the [examples][] folder. These contain both `config.yaml` and `train.py` scripts.
 
 ### The config file
+
 You need config file in `yaml` format. This file should have three sections:
 - `general`: you need to define at least the `project_name` and the `entity` for the sweep on wandB.
 - `slurm`: any valid slurm option. Depends on your cluster, see the `simple_slurm` docs.
 - `wandb`: [standard W&B config](https://docs.wandb.ai/guides/sweeps/define-sweep-configuration/) for a hyperparameter sweep.
 
 ### The training script
+
 This needs to be a python script that defines the training and evaluation logic. It should call `wandb.init()` and retrieve parameters from `wandb.config`. It can log values using `wandb.log`. See the [W&B docs](https://docs.wandb.ai/guides/sweeps/).
 
 ### Submission
+
 Once you're ready, you can test your config file using `slurm-sweep validate-config config.yaml`. If this passes, create a submission script using `slurm-sweep configure-sweep config.yaml`, and submit with `sbatch submit.sh`.
 
 ## Installation
@@ -59,6 +62,7 @@ There are two alternative options to install `slurm_sweep`:
 See the [changelog][].
 
 ## Contact
+
 If you found a bug, please use the [issue tracker][].
 
 
@@ -70,7 +74,7 @@ If you found a bug, please use the [issue tracker][].
 [changelog]: https://github.com/quadbio/slurm_sweep/blob/main/CHANGELOG.md
 [pypi]: https://pypi.org/project/slurm_sweep
 [simple_slurm]: https://github.com/amq92/simple_slurm
-[W&B]:  https://wandb.ai/site/
+[W&B]: https://wandb.ai/site/
 [coverage]: https://codecov.io/gh/quadbio/slurm_sweep
 [pre-commit]: https://results.pre-commit.ci/latest/github/quadbio/slurm_sweep/main
 [pypi]: https://pypi.org/project/slurm_sweep/
