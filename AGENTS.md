@@ -5,7 +5,7 @@ job arrays via [simple_slurm][]. It registers a W&B sweep from a YAML config and
 emits a `submit.sh` script that runs `wandb agent` inside a SLURM array.
 
 Key dependencies: `wandb`, `simple-slurm`, `typer`, `session-info2`.
-Python: 3.11–3.14.
+Python: 3.12–3.14.
 
 ## Trust Order
 
@@ -81,13 +81,13 @@ checks. This file only owns the project invariants and source-of-truth map.
 
 ## Development Commands
 
-Python 3.11 and 3.14 are the matrix endpoints (see `[tool.hatch.envs.hatch-test.matrix]`).
+Python 3.12 and 3.14 are the matrix endpoints (see `[tool.hatch.envs.hatch-test.matrix]`).
 
 ```bash
 uv sync                             # install dev deps via dependency-groups
 uv run --group test pytest          # quick local test run
 uvx hatch test                      # run tests on the highest matrix Python
-uvx hatch test --all                # full matrix (3.11 stable, 3.14 stable, 3.14 pre)
+uvx hatch test --all                # full matrix (3.12 stable, 3.14 stable, 3.14 pre)
 pre-commit run --all-files          # lint + format (ruff, biome, pyproject-fmt)
 ```
 
