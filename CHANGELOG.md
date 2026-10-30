@@ -10,6 +10,27 @@ and this project adheres to [Semantic Versioning][].
 
 ## [Unreleased]
 
+## [v0.3.0]
+
+### Removed
+
+- Support for Python 3.11; Python 3.12 or newer is now required [#34]
+- Unused `numpy` runtime dependency [#25]
+
+### Changed
+
+- Update the cookiecutter-scverse template to v0.8.0 [#25], [#34]
+
+## [v0.2.1]
+
+### Removed
+
+- Support for Python 3.10 [#20]
+
+### Changed
+
+- Update the cookiecutter-scverse template to v0.6.0 [#19]
+
 ## [v0.2.0]
 
 ### Added
