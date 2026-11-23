@@ -49,16 +49,19 @@ Use `AGENTS.md` for architecture, invariants, and commands. Use this guide for r
 Apply these checks whenever the PR touches code or tests. **Read CI output rather than running tests locally.**
 
 **New code.** Confirm that new behavior is covered by tests.
+
 - Reuse fixtures from `tests/conftest.py` rather than creating parallel ones.
 - Prefer `pytest.mark.parametrize` over many near-identical tests.
 - Favor few meaningful tests over many redundant ones; flag low-value tests that only duplicate existing coverage.
 
 **Failing tests.** If CI is red, do not wave it through.
+
 - Inspect which tests fail and why (`gh pr checks <num>`, `gh run view <run-id> --log-failed`).
 - Distinguish critical regressions (config-schema, `submit.sh` shape, CLI surface) from trivial or flaky failures.
 - Surface critical failures back to the author and ask them to fix before merge.
 
 **Modified tests.** Scrutinize _how_ existing tests were changed.
+
 - PRs that only relax thresholds, remove assertions, delete cases, or loosen `parametrize` matrices are a red flag — tests-working-around-tests defeats the purpose.
 - Require an explicit justification in the PR body for any weakened assertion; do not accept silently.
 
@@ -67,11 +70,13 @@ Apply these checks whenever the PR touches code or tests. **Read CI output rathe
 A single behavioral or API change often touches docs in multiple places. Check both audiences and ask the author to update what is stale. Point to the **owning file** for each topic rather than duplicating content in your review.
 
 **Human-facing docs.**
+
 - Public API or CLI changes → `README.md` and `docs/contributing.md` if relevant.
 - Config-schema changes → `examples/basic_config.yaml` (the canonical commented template) and `examples/README.md`.
 - `submit.sh` shape changes → check that `examples/*/submit.sh` references in the example READMEs still match.
 
 **Agent-facing docs (repo root and `.github/`).**
+
 - Invariants or development commands changed → `AGENTS.md` (Critical Invariants, Development Commands).
 - Review workflow, risk areas, or testing conventions changed → `REVIEW_GUIDE.md` (this file).
 - Repo structure or top-level pointers moved → `AGENTS.md` "Where To Find What" table, `CLAUDE.md`, `.github/copilot-instructions.md`.
