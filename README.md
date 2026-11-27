@@ -12,7 +12,6 @@
 [badge-pypi]: https://img.shields.io/pypi/v/slurm_sweep.svg
 [badge-downloads]: https://static.pepy.tech/badge/slurm-sweep
 
-
 `slurm_sweep` is the missing (small) piece to efficiently run hyperparameter sweeps on SLURM clusters by combining the power of weights and biases ([W&B][]) and [simple_slurm][]. It allows you to efficiently parallelize sweeps with job arrays, while tracking experiments and results on W&B. All you need is:
 
 - [W&B][] account.
@@ -26,6 +25,7 @@ Create an account on [W&B][] and take a look at our examples in the [examples][]
 ### The config file
 
 You need config file in `yaml` format. This file should have three sections:
+
 - `general`: you need to define at least the `project_name` and the `entity` for the sweep on wandB.
 - `slurm`: any valid slurm option. Depends on your cluster, see the `simple_slurm` docs.
 - `wandb`: [standard W&B config](https://docs.wandb.ai/guides/sweeps/define-sweep-configuration/) for a hyperparameter sweep.
@@ -64,7 +64,6 @@ See the [changelog][].
 ## Contact
 
 If you found a bug, please use the [issue tracker][].
-
 
 [examples]: https://github.com/quadbio/slurm_sweep/tree/main/examples
 [uv]: https://github.com/astral-sh/uv
